@@ -1,3 +1,5 @@
 git add .
-git commit -m "Your message here"
+
+git commit -m "latest"
+
 git push
