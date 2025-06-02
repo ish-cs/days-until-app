@@ -7,19 +7,26 @@ const ai = new GoogleGenAI({
 
 export async function handler(event) {
   try {
-    const { text: userInput } = JSON.parse(event.body);
+    const { text: userInput, context } = JSON.parse(event.body);
     const today = new Date().toISOString().slice(0, 10);
 
     const prompt = `
 Today is ${today}.
-You are a smart assistant that extracts the event name and event date from this input:
+You are a smart assistant that extracts the event name, date and time from natural input.
+
+Here is the user's existing event list:
+${context.map(e => `- ${e.name} on ${e.date}${e.time ? ` at ${e.time}` : ''}`).join('\n')}
+
+Now interpret this user input:
 "${userInput}"
 
 Return only JSON in this format:
-{ "name": "event name", "date": "YYYY-MM-DD" }
+{ "name": "event name", "date": "YYYY-MM-DD", "time": "HH:MM" }
 
-If a date is missing or unclear, return:
-{ "name": null, "date": null }
+- "time" should be 24-hour format (e.g. "18:30")
+- If time is missing or unclear, use: "time": ""
+- If date is missing or unclear, use: "date": null
+- If name is missing, use: "name": null
 `;
 
     const result = await ai.models.generateContent({

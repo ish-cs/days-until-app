@@ -66,6 +66,7 @@ async function enterApp() {
   const quickAdd = userDoc.exists ? userDoc.data().quickAddMode : false;
   quickAddToggle.checked = quickAdd;
   dateInput.style.display = quickAdd ? 'none' : 'block';
+  timeInput.style.display = quickAdd ? 'none' : 'block';
   nameInput.placeholder = quickAdd ? "e.g. Dinner on July 9th" : "e.g. Dinner";
 
   loadEvents();
@@ -114,11 +115,18 @@ form.addEventListener('submit', async e => {
     }, QUICK_ADD_COOLDOWN_MS);
 
     try {
+      const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
+      const allEvents = snapshot.docs.map(doc => doc.data());
+
       const response = await fetch('/.netlify/functions/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: name })
+        body: JSON.stringify({
+          text: name,
+          context: allEvents
+        })
       });
+
 
       const data = await response.json();
       if (!data.name || !data.date) throw new Error("Incomplete data");
@@ -228,7 +236,6 @@ function displayEvent(event) {
   nameSpan.className = `text-black bg-${bgColor} px-1 rounded cursor-pointer`;
   nameSpan.textContent = event.name;
 
-  // Format time to 12-hour (if exists)
   let formattedTime = '';
   if (event.time) {
     const [hour, minute] = event.time.split(':');
@@ -468,16 +475,16 @@ document.getElementById('calendarFile').addEventListener('change', async (e) => 
   alert(`Imported ${events.length} calendar events.`);
   e.target.value = '';
 });
+
 const quickAddToggle = document.getElementById('quickAddToggle');
-const nameInputField = document.getElementById('eventName');
-const dateInputField = document.getElementById('eventDate');
 
 quickAddToggle.addEventListener('change', () => {
   const isQuickAdd = quickAddToggle.checked;
 
   dateInput.style.display = isQuickAdd ? 'none' : 'block';
+  timeInput.style.display = isQuickAdd ? 'none' : 'block';
 
-  nameInput.placeholder = isQuickAdd ? "e.g. Dinner on July 9th" : "e.g. Dinner";
+  nameInput.placeholder = isQuickAdd ? "e.g. Dinner on July 9th at 9;45 PM" : "e.g. Dinner";
 
   if (currentUser) {
     db.collection('users').doc(currentUser).set({
