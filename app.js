@@ -19,6 +19,7 @@ const mainSection = document.getElementById('mainSection');
 const form = document.getElementById('eventForm');
 const nameInput = document.getElementById('eventName');
 const dateInput = document.getElementById('eventDate');
+const timeInput = document.getElementById('eventTime');
 const eventsList = document.getElementById('eventsList');
 const usernameDisplay = document.getElementById('usernameDisplay');
 const addButton = form.querySelector('button[type="submit"]');
@@ -82,12 +83,12 @@ function exitApp() {
 form.addEventListener('submit', async e => {
   e.preventDefault();
 
-  // 🔒 Force correct UI regardless of state corruption
   const isQuickAdd = quickAddToggle.checked;
   dateInput.style.display = isQuickAdd ? 'none' : 'block';
 
   const name = nameInput.value.trim();
   const date = dateInput.value;
+  const time = timeInput.value.trim();
   const existingPopup = document.getElementById('formWarning');
   if (existingPopup) existingPopup.remove();
 
@@ -122,7 +123,7 @@ form.addEventListener('submit', async e => {
       const data = await response.json();
       if (!data.name || !data.date) throw new Error("Incomplete data");
 
-      await saveEvent(data.name, data.date);
+      await saveEvent(data.name, data.date, data.time || "");
       nameInput.value = '';
     } catch {
       const warning = document.createElement('div');
@@ -144,7 +145,7 @@ form.addEventListener('submit', async e => {
       return;
     }
 
-    await saveEvent(name, date);
+    await saveEvent(name, date, time);
     form.reset();
   }
 });
@@ -160,9 +161,9 @@ async function loadEvents() {
   events.forEach(event => displayEvent(event));
 }
 
-async function saveEvent(name, date) {
+async function saveEvent(name, date, time = "") {
   if (!currentUser) return;
-  await db.collection('users').doc(currentUser).collection('events').add({ name, date, owner: currentUser });
+  await db.collection('users').doc(currentUser).collection('events').add({ name, date, time, owner: currentUser });
   loadEvents();
 }
 
@@ -227,6 +228,22 @@ function displayEvent(event) {
   nameSpan.className = `text-black bg-${bgColor} px-1 rounded cursor-pointer`;
   nameSpan.textContent = event.name;
 
+  // Format time to 12-hour (if exists)
+  let formattedTime = '';
+  if (event.time) {
+    const [hour, minute] = event.time.split(':');
+    const h = parseInt(hour, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    formattedTime = `${h12}:${minute} ${ampm}`;
+  }
+
+  // Separate span for time (outside the colored box)
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'text-xs text-gray-400 ml-2';
+  timeSpan.textContent = formattedTime;
+
+
   nameSpan.addEventListener('click', () => {
     const input = document.createElement('input');
     input.type = 'text';
@@ -267,6 +284,8 @@ function displayEvent(event) {
       : `${days} day(s) until`;
   textDiv.appendChild(document.createTextNode(`${prefix} `));
   textDiv.appendChild(nameSpan);
+  if (event.time) textDiv.appendChild(timeSpan);
+
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'text-red-500 hover:underline ml-2 whitespace-nowrap';
@@ -334,7 +353,16 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
   if (!currentUser) return;
 
   const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
-  const events = snapshot.docs.map(doc => doc.data());
+  const events = snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      name: data.name,
+      date: data.date,
+      time: data.time || "", // include time if present
+      bgColor: data.bgColor || "yellow-300"
+    };
+  });
+
   const eventCount = events.length;
 
   const confirmed = confirm(`Are you sure you want to export your events?\nYou will download a JSON file with ${eventCount} event${eventCount !== 1 ? 's' : ''}.`);
@@ -368,6 +396,7 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
       batch.set(doc, {
         name: event.name || "Unnamed Event",
         date: event.date || new Date().toISOString().slice(0, 10),
+        time: event.time || "",
         bgColor: event.bgColor || 'yellow-300',
         owner: currentUser
       });
