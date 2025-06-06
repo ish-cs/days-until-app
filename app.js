@@ -159,14 +159,15 @@ function showModalConfirmation(id, message, onConfirm, onCancel) {
   const messageText = createEl('p', 'text-white text-center', message);
   const buttonContainer = createEl('div', 'flex gap-4 mt-4');
 
-  const confirmButton = createEl('button', 'px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700', 'Confirm');
+  // Applying 'subtle-btn' class and retaining specific colors/hovers
+  const confirmButton = createEl('button', 'subtle-btn text-left w-full border-red-600 hover:bg-red-900', 'Confirm');
   confirmButton.onclick = () => {
     cleanupKeyboardListener();
     onConfirm();
     modalOverlay.remove();
   };
 
-  const cancelButton = createEl('button', 'px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700', 'Cancel');
+  const cancelButton = createEl('button', 'subtle-btn text-left w-full cursor-pointer', 'Cancel');
   cancelButton.onclick = () => {
     cleanupKeyboardListener();
     onCancel();
