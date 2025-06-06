@@ -1,7 +1,6 @@
+----->    HOW TO PUSH TO GITHUB     <-----
 git add .
-
 git commit -m "latest"
-
 git push
 
 
