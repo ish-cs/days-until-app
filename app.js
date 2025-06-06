@@ -30,7 +30,8 @@ const addButton = form.querySelector('button[type="submit"]');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsMenu = document.getElementById('settingsMenu');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-const autoDeleteToggle = document.getElementById('autoDeleteToggle'); // New DOM reference
+const autoDeleteToggle = document.getElementById('autoDeleteToggle');
+const deleteAllEventsBtn = document.getElementById('deleteAllEventsBtn');
 
 
 let currentUser = null;
@@ -51,17 +52,17 @@ firebase.auth().onAuthStateChanged(async user => {
 });
 
 loginBtn.addEventListener('click', () => {
-  firebase.auth().signInWithPopup(provider).catch(err =>
-    // Replaced alert with console.error as per instructions
-    console.error('Login failed: ' + err.message)
-  );
+  firebase.auth().signInWithPopup(provider).catch(err => {
+    showWarning('loginWarning', 'Login failed: ' + err.message);
+    console.error('Login failed: ' + err.message);
+  });
 });
 
 logoutBtn.addEventListener('click', () => {
-  firebase.auth().signOut().catch(err =>
-    // Replaced alert with console.error as per instructions
-    console.error('Logout failed: ' + err.message)
-  );
+  firebase.auth().signOut().catch(err => {
+    showWarning('logoutWarning', 'Logout failed: ' + err.message);
+    console.error('Logout failed: ' + err.message);
+  });
 });
 
 // === Settings Menu Handlers ===
@@ -82,6 +83,15 @@ settingsMenu.addEventListener('click', (e) => {
 
 
 // === UI Mode Switching ===
+// Moved updateFormMode here so it's defined before showMainUI calls it
+function updateFormMode(isQuickAdd) {
+  dateInput.style.display = isQuickAdd ? 'none' : 'block';
+  timeInput.style.display = isQuickAdd ? 'none' : 'block';
+  nameInput.placeholder = isQuickAdd
+    ? "e.g. Dinner on July 9th at 9:45 PM"
+    : "e.g. Dinner";
+}
+
 async function showMainUI() {
   authSection.classList.add('hidden');
   document.getElementById('titleRow').classList.remove('hidden');
@@ -93,7 +103,6 @@ async function showMainUI() {
   const quickAdd = userDoc.exists ? userDoc.data().quickAddMode : false;
   quickAddToggle.checked = quickAdd;
 
-  // New: Get and set autoDeleteMode
   const autoDelete = userDoc.exists ? userDoc.data().autoDeleteMode : false;
   autoDeleteToggle.checked = autoDelete;
 
@@ -106,29 +115,88 @@ function showLoginUI() {
   mainSection.classList.add('hidden');
   document.getElementById('titleRow').classList.add('hidden');
   form.style.display = 'none';
-  settingsMenu.classList.add('hidden'); // Hide settings on logout
+  settingsMenu.classList.add('hidden');
 }
 
 // === UI Helpers ===
-function updateFormMode(isQuickAdd) {
-  dateInput.style.display = isQuickAdd ? 'none' : 'block';
-  timeInput.style.display = isQuickAdd ? 'none' : 'block';
-  nameInput.placeholder = isQuickAdd
-    ? "e.g. Dinner on July 9th at 9:45 PM"
-    : "e.g. Dinner";
-}
-
-function showWarning(id, message, extraClasses = '') {
+// Modified showWarning to correctly apply color and border
+function showWarning(id, message, classes = 'text-red-500 border-red-500', timeout = 1500) {
   const existing = document.getElementById(id);
   if (existing) existing.remove();
 
   const warning = document.createElement('div');
   warning.id = id;
   warning.textContent = message;
-  warning.className = `text-red-500 bg-black border border-red-500 rounded px-3 py-2 absolute bottom-20 ${extraClasses}`;
+  // Base styling for common properties, then apply the specific color and border
+  warning.className = `bg-black border rounded px-3 py-2 absolute bottom-20 ${classes}`;
   form.appendChild(warning);
-  setTimeout(() => warning.remove(), 1500);
+  
+  if (timeout > 0) {
+    setTimeout(() => warning.remove(), timeout);
+  }
 }
+
+// New function for modal confirmations with keyboard support
+function showModalConfirmation(id, message, onConfirm, onCancel) {
+  const existing = document.getElementById(id);
+  if (existing) existing.remove(); // Remove any existing confirmation
+
+  const modalOverlay = document.createElement('div');
+  modalOverlay.id = id;
+  modalOverlay.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]'; // Higher z-index
+
+  const modalContent = document.createElement('div');
+  modalContent.className = 'bg-black border border-gray-700 rounded-lg p-6 w-full max-w-sm flex flex-col items-center gap-4';
+
+  const messageText = document.createElement('p');
+  messageText.textContent = message;
+  messageText.className = 'text-white text-center';
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.className = 'flex gap-4 mt-4';
+
+  const confirmButton = document.createElement('button');
+  confirmButton.textContent = 'Confirm';
+  confirmButton.className = 'px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700';
+  confirmButton.onclick = () => {
+    cleanupKeyboardListener(); // Remove listener before closing
+    onConfirm();
+    modalOverlay.remove();
+  };
+
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = 'Cancel';
+  cancelButton.className = 'px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700';
+  cancelButton.onclick = () => {
+    cleanupKeyboardListener(); // Remove listener before closing
+    onCancel();
+    modalOverlay.remove();
+  };
+
+  buttonContainer.appendChild(confirmButton);
+  buttonContainer.appendChild(cancelButton);
+  modalContent.appendChild(messageText);
+  modalContent.appendChild(buttonContainer);
+  modalOverlay.appendChild(modalContent);
+  document.body.appendChild(modalOverlay); // Append to body to ensure it's on top
+
+  // Add keyboard listener for Enter/Escape
+  const keyboardListener = (e) => {
+    if (e.key === 'Enter') {
+      confirmButton.click(); // Simulate click on confirm
+    } else if (e.key === 'Escape') {
+      cancelButton.click(); // Simulate click on cancel
+    }
+  };
+
+  // Function to remove the keyboard listener
+  const cleanupKeyboardListener = () => {
+    document.removeEventListener('keydown', keyboardListener);
+  };
+
+  document.addEventListener('keydown', keyboardListener);
+}
+
 
 // === Form Submission Handler ===
 form.addEventListener('submit', async e => {
@@ -154,8 +222,8 @@ form.addEventListener('submit', async e => {
 
     try {
       const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
-      const allEvents = snapshot.docs.map(doc => doc.data());
-
+      const allEvents = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); // Include ID for context
+      
       const response = await fetch('/.netlify/functions/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,7 +235,8 @@ form.addEventListener('submit', async e => {
 
       await saveEvent(data.name, data.date, data.time || '');
       nameInput.value = '';
-    } catch {
+    } catch (err) {
+      console.error("Gemini call failed:", err); // Log the actual error
       showWarning('formWarning', 'Could not understand. Try a clearer event and date.');
     }
   } else {
@@ -195,7 +264,6 @@ async function loadEvents() {
   const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
   let events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-  // New: Auto-delete past events if toggle is enabled
   const userDoc = await db.collection('users').doc(currentUser).get();
   const autoDelete = userDoc.exists ? userDoc.data().autoDeleteMode : false;
 
@@ -210,7 +278,7 @@ async function loadEvents() {
       }
     });
     await batch.commit();
-    events = filteredEvents; // Update events array with only non-deleted events
+    events = filteredEvents;
   }
 
   events.sort((a, b) => calculateDaysLeft(a.date) - calculateDaysLeft(b.date));
@@ -232,17 +300,31 @@ async function updateEventDate(id, newDate) {
 
 async function deleteEvent(eventToDelete) {
   if (!currentUser || !eventToDelete?.id) return;
-  // Replaced confirm with console.log as per instructions
-  console.log(`Delete "${eventToDelete.name}"?`);
-  await db.collection('users').doc(currentUser).collection('events').doc(eventToDelete.id).delete();
-  loadEvents();
+
+  showModalConfirmation(
+    `deleteSingleConfirm-${eventToDelete.id}`, // Unique ID for each event's confirmation
+    `Are you sure you want to delete "${eventToDelete.name}"? This cannot be undone.`,
+    async () => {
+      try {
+        await db.collection('users').doc(currentUser).collection('events').doc(eventToDelete.id).delete();
+        loadEvents();
+        showWarning('deleteSingleSuccess', `Event "${eventToDelete.name}" deleted successfully!`, 'text-green-500 border-green-500');
+        console.log(`Event "${eventToDelete.name}" deleted.`);
+      } catch (err) {
+        showWarning('deleteSingleError', `Failed to delete event "${eventToDelete.name}".`, 'text-red-500 border-red-500');
+        console.error(`Failed to delete event "${eventToDelete.name}":`, err);
+      }
+    },
+    () => {
+      console.log(`Deletion of "${eventToDelete.name}" cancelled.`);
+    }
+  );
 }
 
 // === Utility Functions ===
 function calculateDaysLeft(dateStr) {
   const eventDate = new Date(dateStr);
   const now = new Date();
-  // Set time to 00:00:00 for accurate day calculation
   eventDate.setHours(0, 0, 0, 0);
   now.setHours(0, 0, 0, 0);
   return Math.ceil((eventDate - now) / (1000 * 60 * 60 * 24));
@@ -273,12 +355,10 @@ function displayEvent(event) {
     input.type = 'date';
     input.value = event.date;
 
-    // Get the computed width and height of the current dateBox
     const originalWidth = dateBox.offsetWidth;
     const originalHeight = dateBox.offsetHeight;
 
-    // Apply classes and inline styles to match the original box
-    input.className = 'border rounded text-sm bg-black text-white p-4 text-center'; // Use p-4 for padding, text-center for alignment
+    input.className = 'border rounded text-sm bg-black text-white p-4 text-center';
     input.style.width = `${originalWidth}px`;
     input.style.height = `${originalHeight}px`;
 
@@ -290,8 +370,7 @@ function displayEvent(event) {
       if (newDate && newDate !== event.date) {
         updateEventDate(event.id, newDate);
       } else {
-        // If no new date or invalid, revert to displaying the formatted text
-        loadEvents(); // Reloads all events, which recreates the dateBox
+        loadEvents();
       }
     });
 
@@ -360,9 +439,7 @@ function displayEvent(event) {
   delBtn.className = 'text-red-500 hover:underline ml-2 whitespace-nowrap';
   delBtn.textContent = 'Delete';
   delBtn.addEventListener('click', () => {
-    // Replaced confirm with console.log as per instructions
-    console.log(`Delete "${event.name}"?`);
-    deleteEvent(event);
+    deleteEvent(event); // Call the main deleteEvent function
   });
 
   const eventBox = document.createElement('div');
@@ -401,7 +478,6 @@ bgColors.forEach(color => {
 
 document.body.appendChild(colorMenu);
 document.addEventListener('click', (e) => {
-  // Only hide if the click is outside the color menu itself and not on a child of the color menu
   if (!colorMenu.contains(e.target) && e.target !== colorMenu.targetSpan) {
     colorMenu.classList.add('hidden');
   }
@@ -423,12 +499,12 @@ quickAddToggle.addEventListener('change', () => {
   }
 });
 
-// New: Auto-Delete Toggle Save
+// Auto-Delete Toggle Save
 autoDeleteToggle.addEventListener('change', async () => {
   const isAutoDelete = autoDeleteToggle.checked;
   if (currentUser) {
     await db.collection('users').doc(currentUser).set({ autoDeleteMode: isAutoDelete }, { merge: true });
-    loadEvents(); // Reload events to apply auto-delete immediately
+    loadEvents();
   }
 });
 
@@ -437,25 +513,31 @@ autoDeleteToggle.addEventListener('change', async () => {
 document.getElementById('exportBtn').addEventListener('click', async () => {
   if (!currentUser) return;
 
-  const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
-  const events = snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      name: data.name,
-      date: data.date,
-      time: data.time || "",
-      bgColor: data.bgColor || "yellow-300"
-    };
-  });
+  try {
+    const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
+    const events = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        name: data.name,
+        date: data.date,
+        time: data.time || "",
+        bgColor: data.bgColor || "yellow-300"
+      };
+    });
 
-  const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+    const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
 
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${currentUser}_events.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentUser}_events.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showWarning('exportSuccess', 'Events exported successfully!', 'text-green-500 border-green-500');
+  } catch (err) {
+    showWarning('exportError', 'Failed to export events.', 'text-red-500 border-red-500');
+    console.error('Export failed:', err);
+  }
 });
 
 // === IMPORT from .json ===
@@ -482,11 +564,10 @@ document.getElementById('importFile').addEventListener('change', async e => {
 
     await batch.commit();
     loadEvents();
-    // Replaced alert with console.log as per instructions
-    console.log(`Imported ${imported.length} events.`);
-  } catch {
-    // Replaced alert with console.error as per instructions
-    console.error('Invalid JSON file.');
+    showWarning('importSuccess', `Imported ${imported.length} events.`, 'text-green-500 border-green-500');
+  } catch (err) {
+    showWarning('importError', 'Invalid JSON file or import failed.', 'text-red-500 border-red-500');
+    console.error('Invalid JSON file or import failed:', err);
   }
 
   e.target.value = '';
@@ -534,12 +615,40 @@ document.getElementById('calendarFile').addEventListener('change', async e => {
 
     await batch.commit();
     loadEvents();
-    // Replaced alert with console.log as per instructions
-    console.log(`Imported ${events.length} calendar events.`);
-  } catch {
-    // Replaced alert with console.error as per instructions
-    console.error('Invalid ICS file.');
+    showWarning('icsImportSuccess', `Imported ${events.length} calendar events.`, 'text-green-500 border-green-500');
+  } catch (err) {
+    showWarning('icsImportError', 'Invalid ICS file or import failed.', 'text-red-500 border-red-500');
+    console.error('Invalid ICS file or import failed:', err);
   }
 
   e.target.value = '';
+});
+
+// === Delete All Events ===
+deleteAllEventsBtn.addEventListener('click', async () => {
+  if (!currentUser) return;
+
+  showModalConfirmation(
+    'deleteAllConfirm',
+    'Are you sure you want to delete ALL events? This cannot be undone.',
+    async () => {
+      try {
+        const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
+        const batch = db.batch();
+        snapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+        loadEvents();
+        showWarning('deleteAllSuccess', 'All events deleted successfully!', 'text-green-500 border-green-500');
+        console.log('All events deleted.');
+      } catch (err) {
+        showWarning('deleteAllError', 'Failed to delete all events.', 'text-red-500 border-red-500');
+        console.error('Failed to delete all events:', err);
+      }
+    },
+    () => {
+      console.log('Delete all events cancelled.');
+    }
+  );
 });
