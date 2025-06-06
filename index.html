@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Days Until...</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+
+<body class="flex flex-col min-h-screen text-white bg-black">
+
+  <!-- Top Bar -->
+  <header id="titleRow" class="hidden flex w-full max-w-4xl justify-between items-center mx-auto mt-6 px-4">
+    <h1 class="text-3xl font-bold">Days Until...</h1>
+    <div id="userPanel" class="hidden flex items-center gap-2">
+      <button id="exportBtn" class="subtle-btn cursor-pointer" title="Export Events">⬆️</button>
+      <label for="importFile" class="subtle-btn cursor-pointer" title="Import Events">⤵️</label>
+      <input type="file" id="importFile" accept=".json" class="hidden" />
+      <label for="calendarFile" class="subtle-btn cursor-pointer" title="Import from .ics calendar">📆</label>
+      <input type="file" id="calendarFile" accept=".ics" class="hidden" />
+      <span id="usernameDisplay" class="text-base mx-3"></span>
+      <button id="logoutBtn" class="subtle-btn cursor-pointer">Logout</button>
+    </div>
+  </header>
+
+  <!-- Login Section -->
+  <main id="authSection" class="flex flex-col items-center justify-center min-h-screen gap-6 text-center px-4">
+    <h1 class="text-3xl font-bold">Days Until...</h1>
+    <button id="googleLoginBtn" class="subtle-btn cursor-pointer">Sign in with Google</button>
+  </main>
+
+  <!-- Main Section -->
+  <section id="mainSection" class="hidden">
+    <div id="eventsList" class="flex flex-col gap-4 w-full max-w-2xl mx-auto mt-6"></div>
+
+    <form id="eventForm" autocomplete="off"
+      class="hidden fixed bottom-0 left-0 right-0 bg-[#000000] border-t border-gray-700 flex justify-center items-center gap-3 p-4">
+      <input id="eventName" type="text" placeholder="Event name or 'Dinner on July 9'"
+        class="p-2 border rounded w-1/3" />
+      <input id="eventDate" type="date" class="p-2 border rounded w-1/6" />
+      <input id="eventTime" type="time" class="p-2 border rounded w-1/6" />
+      <button type="submit" class="border py-2 px-4 rounded hover:opacity-80">Add</button>
+      <label class="ml-2 text-sm flex items-center gap-2">
+        <input id="quickAddToggle" type="checkbox" class="accent-white" />
+        Quick Add Mode
+      </label>
+    </form>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,459 @@
+// === Firebase Initialization ===
+const firebaseConfig = {
+  apiKey: "AIzaSyAewNRpYxsT7D-c2yE6PvR52YaBkZGOfN4",
+  authDomain: "daysuntil-c8909.firebaseapp.com",
+  projectId: "daysuntil-c8909",
+  messagingSenderId: "850249417315",
+  appId: "1:850249417315:web:de7fb067dbf7df28c3ae56",
+  measurementId: "G-7Q7EBH5C0J"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
+
+// === DOM References ===
+const loginBtn = document.getElementById('googleLoginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const authSection = document.getElementById('authSection');
+const mainSection = document.getElementById('mainSection');
+const form = document.getElementById('eventForm');
+const nameInput = document.getElementById('eventName');
+const dateInput = document.getElementById('eventDate');
+const timeInput = document.getElementById('eventTime');
+const eventsList = document.getElementById('eventsList');
+const usernameDisplay = document.getElementById('usernameDisplay');
+const quickAddToggle = document.getElementById('quickAddToggle');
+const addButton = form.querySelector('button[type="submit"]');
+
+let currentUser = null;
+const QUICK_ADD_COOLDOWN_MS = 4000;
+let quickAddCooldown = false;
+
+// === Auth State Handling ===
+firebase.auth().onAuthStateChanged(async user => {
+  if (user) {
+    currentUser = user.uid;
+    usernameDisplay.textContent = user.displayName || user.email;
+    await showMainUI();
+  } else {
+    currentUser = null;
+    usernameDisplay.textContent = '';
+    showLoginUI();
+  }
+});
+
+loginBtn.addEventListener('click', () => {
+  firebase.auth().signInWithPopup(provider).catch(err =>
+    alert('Login failed: ' + err.message)
+  );
+});
+
+logoutBtn.addEventListener('click', () => {
+  firebase.auth().signOut().catch(err =>
+    alert('Logout failed: ' + err.message)
+  );
+});
+
+// === UI Mode Switching ===
+async function showMainUI() {
+  authSection.classList.add('hidden');
+  document.getElementById('titleRow').classList.remove('hidden');
+  document.getElementById('userPanel').classList.remove('hidden');
+  mainSection.classList.remove('hidden');
+  form.style.display = 'flex';
+
+  const userDoc = await db.collection('users').doc(currentUser).get();
+  const quickAdd = userDoc.exists ? userDoc.data().quickAddMode : false;
+  quickAddToggle.checked = quickAdd;
+
+  updateFormMode(quickAdd);
+  loadEvents();
+}
+
+function showLoginUI() {
+  authSection.classList.remove('hidden');
+  mainSection.classList.add('hidden');
+  document.getElementById('titleRow').classList.add('hidden');
+  form.style.display = 'none';
+}
+
+// === UI Helpers ===
+function updateFormMode(isQuickAdd) {
+  dateInput.style.display = isQuickAdd ? 'none' : 'block';
+  timeInput.style.display = isQuickAdd ? 'none' : 'block';
+  nameInput.placeholder = isQuickAdd
+    ? "e.g. Dinner on July 9th at 9:45 PM"
+    : "e.g. Dinner";
+}
+
+function showWarning(id, message, extraClasses = '') {
+  const existing = document.getElementById(id);
+  if (existing) existing.remove();
+
+  const warning = document.createElement('div');
+  warning.id = id;
+  warning.textContent = message;
+  warning.className = `text-red-500 bg-black border border-red-500 rounded px-3 py-2 absolute bottom-20 ${extraClasses}`;
+  form.appendChild(warning);
+  setTimeout(() => warning.remove(), 1500);
+}
+
+// === Form Submission Handler ===
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const isQuickAdd = quickAddToggle.checked;
+  updateFormMode(isQuickAdd);
+
+  const name = nameInput.value.trim();
+  const date = dateInput.value;
+  const time = timeInput.value.trim();
+
+  if (isQuickAdd) {
+    if (!name) return;
+
+    if (quickAddCooldown) {
+      showWarning('cooldownWarning', 'Please wait 4 seconds before adding another.');
+      return;
+    }
+
+    quickAddCooldown = true;
+    setTimeout(() => (quickAddCooldown = false), QUICK_ADD_COOLDOWN_MS);
+
+    try {
+      const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
+      const allEvents = snapshot.docs.map(doc => doc.data());
+
+      const response = await fetch('/.netlify/functions/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: name, context: allEvents })
+      });
+
+      const data = await response.json();
+      if (!data.name || !data.date) throw new Error();
+
+      await saveEvent(data.name, data.date, data.time || '');
+      nameInput.value = '';
+    } catch {
+      showWarning('formWarning', 'Could not understand. Try a clearer event and date.');
+    }
+  } else {
+    if (!name || !date) {
+      showWarning('formWarning', 'Please fill out both fields.');
+      return;
+    }
+
+    await saveEvent(name, date, time);
+    form.reset();
+  }
+});
+
+// === Firestore Event Functions ===
+async function saveEvent(name, date, time = "") {
+  if (!currentUser) return;
+  await db.collection('users').doc(currentUser).collection('events').add({
+    name, date, time, owner: currentUser
+  });
+  loadEvents();
+}
+
+async function loadEvents() {
+  if (!currentUser) return;
+  const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
+  const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  events.sort((a, b) => calculateDaysLeft(a.date) - calculateDaysLeft(b.date));
+  eventsList.innerHTML = '';
+  events.forEach(event => displayEvent(event));
+}
+
+async function updateEventName(id, newName) {
+  if (!currentUser || !newName) return;
+  await db.collection('users').doc(currentUser).collection('events').doc(id).update({ name: newName });
+  loadEvents();
+}
+
+async function updateEventDate(id, newDate) {
+  if (!currentUser || !newDate) return;
+  await db.collection('users').doc(currentUser).collection('events').doc(id).update({ date: newDate });
+  loadEvents();
+}
+
+async function deleteEvent(eventToDelete) {
+  if (!currentUser || !eventToDelete?.id) return;
+  await db.collection('users').doc(currentUser).collection('events').doc(eventToDelete.id).delete();
+  loadEvents();
+}
+
+// === Utility Functions ===
+function calculateDaysLeft(dateStr) {
+  const eventDate = new Date(dateStr);
+  const now = new Date();
+  return Math.ceil((eventDate - now) / (1000 * 60 * 60 * 24));
+}
+
+function formatFullDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
+}
+
+// === Display Event ===
+function displayEvent(event) {
+  const days = calculateDaysLeft(event.date);
+  const fullDate = formatFullDate(event.date);
+  const bgColor = event.bgColor || 'yellow-300';
+
+  const container = document.createElement('div');
+  container.className = 'flex items-center gap-4 flex-wrap sm:flex-nowrap';
+
+  // --- DATE BOX ---
+  const dateBox = document.createElement('div');
+  dateBox.className = 'p-4 border rounded text-sm whitespace-nowrap cursor-pointer';
+  dateBox.textContent = fullDate;
+
+  dateBox.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'date';
+    input.value = event.date;
+    input.className = 'border rounded text-sm bg-black text-white w-[109px] h-[53px] text-center';
+
+    dateBox.replaceWith(input);
+    input.focus();
+
+    input.addEventListener('blur', () => {
+      const newDate = input.value;
+      if (newDate && newDate !== event.date) {
+        updateEventDate(event.id, newDate);
+      } else {
+        loadEvents();
+      }
+    });
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') input.blur();
+    });
+  });
+
+  // --- EVENT NAME + TIME ---
+  const nameSpan = document.createElement('span');
+  nameSpan.className = `text-black bg-${bgColor} px-1 rounded cursor-pointer`;
+  nameSpan.textContent = event.name;
+
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'text-xs text-gray-400 ml-2';
+  if (event.time) {
+    const [h, m] = event.time.split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 === 0 ? 12 : hour % 12;
+    timeSpan.textContent = `${h12}:${m} ${ampm}`;
+  }
+
+  nameSpan.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = event.name;
+    input.className = `text-black bg-${bgColor} px-1 rounded`;
+    nameSpan.replaceWith(input);
+    input.focus();
+
+    input.addEventListener('blur', () => {
+      const newName = input.value.trim();
+      if (newName && newName !== event.name) {
+        updateEventName(event.id, newName);
+      } else {
+        loadEvents();
+      }
+    });
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') input.blur();
+    });
+  });
+
+  nameSpan.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    colorMenu.style.left = `${e.pageX}px`;
+    colorMenu.style.top = `${e.pageY}px`;
+    colorMenu.classList.remove('hidden');
+    colorMenu.targetSpan = nameSpan;
+    colorMenu.targetId = event.id;
+  });
+
+  const text = document.createElement('div');
+  text.className = 'text-left break-words';
+  const prefix = days < 0 ? `happened ${-days} day(s) ago`
+              : days === 0 ? `is today`
+              : `${days} day(s) until`;
+  text.append(`${prefix} `);
+  text.append(nameSpan);
+  if (event.time) text.append(timeSpan);
+
+  // --- DELETE BUTTON ---
+  const delBtn = document.createElement('button');
+  delBtn.className = 'text-red-500 hover:underline ml-2 whitespace-nowrap';
+  delBtn.textContent = 'Delete';
+  delBtn.addEventListener('click', () => {
+    if (confirm(`Delete "${event.name}"?`)) deleteEvent(event);
+  });
+
+  const eventBox = document.createElement('div');
+  eventBox.className = 'p-4 border rounded flex justify-between items-center flex-1 min-w-[200px]';
+  eventBox.appendChild(text);
+  eventBox.appendChild(delBtn);
+
+  container.appendChild(dateBox);
+  container.appendChild(eventBox);
+  eventsList.appendChild(container);
+}
+
+// === Color Menu ===
+const colorMenu = document.createElement('div');
+colorMenu.id = 'colorMenu';
+colorMenu.className = 'fixed bg-black border border-gray-600 p-2 rounded hidden z-50';
+
+const bgColors = [
+  'yellow-300', 'red-300', 'green-300', 'blue-300', 'purple-300',
+  'pink-300', 'orange-300', 'teal-300', 'gray-300', 'white'
+];
+
+bgColors.forEach(color => {
+  const option = document.createElement('div');
+  option.className = `cursor-pointer mb-1 last:mb-0 text-sm px-2 py-1 rounded bg-${color}`;
+  option.addEventListener('click', () => {
+    if (colorMenu.targetSpan) {
+      const clean = colorMenu.targetSpan.className.split(' ').filter(c => !c.startsWith('bg-'));
+      colorMenu.targetSpan.className = [...clean, `bg-${color}`].join(' ');
+      saveHighlightColor(colorMenu.targetId, color);
+    }
+    colorMenu.classList.add('hidden');
+  });
+  colorMenu.appendChild(option);
+});
+
+document.body.appendChild(colorMenu);
+document.addEventListener('click', () => colorMenu.classList.add('hidden'));
+
+async function saveHighlightColor(id, color) {
+  if (!currentUser) return;
+  await db.collection('users').doc(currentUser).collection('events').doc(id).update({ bgColor: color });
+}
+
+// === Quick Add Toggle Save ===
+quickAddToggle.addEventListener('change', () => {
+  const isQuick = quickAddToggle.checked;
+  updateFormMode(isQuick);
+
+  if (currentUser) {
+    db.collection('users').doc(currentUser).set({ quickAddMode: isQuick }, { merge: true });
+  }
+});
+
+// === EXPORT to JSON ===
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  if (!currentUser) return;
+
+  const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
+  const events = snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      name: data.name,
+      date: data.date,
+      time: data.time || "",
+      bgColor: data.bgColor || "yellow-300"
+    };
+  });
+
+  const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentUser}_events.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// === IMPORT from .json ===
+document.getElementById('importFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file || !currentUser) return;
+
+  try {
+    const text = await file.text();
+    const imported = JSON.parse(text);
+    const ref = db.collection('users').doc(currentUser).collection('events');
+    const batch = db.batch();
+
+    imported.forEach(event => {
+      const doc = ref.doc();
+      batch.set(doc, {
+        name: event.name || "Unnamed Event",
+        date: event.date || new Date().toISOString().slice(0, 10),
+        time: event.time || "",
+        bgColor: event.bgColor || 'yellow-300',
+        owner: currentUser
+      });
+    });
+
+    await batch.commit();
+    loadEvents();
+    alert(`Imported ${imported.length} events.`);
+  } catch {
+    alert('Invalid JSON file.');
+  }
+
+  e.target.value = '';
+});
+
+// === IMPORT from .ics ===
+document.getElementById('calendarFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file || !currentUser) return;
+
+  try {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/);
+    const events = [];
+    let current = {};
+
+    for (let line of lines) {
+      if (line.startsWith("BEGIN:VEVENT")) current = {};
+      else if (line.startsWith("SUMMARY:")) current.name = line.slice(8).trim();
+      else if (line.startsWith("DTSTART;VALUE=DATE:")) {
+        const raw = line.split(":")[1].trim();
+        current.date = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+      } else if (line.startsWith("END:VEVENT") && current.name && current.date) {
+        const eventDate = new Date(current.date);
+        const today = new Date();
+        const yearAhead = new Date(); yearAhead.setFullYear(today.getFullYear() + 1);
+        if (eventDate >= today && eventDate <= yearAhead) {
+          events.push(current);
+        }
+      }
+    }
+
+    const ref = db.collection('users').doc(currentUser).collection('events');
+    const batch = db.batch();
+    events.forEach(event => {
+      const doc = ref.doc();
+      batch.set(doc, {
+        name: event.name,
+        date: event.date,
+        time: "",
+        bgColor: 'yellow-300',
+        owner: currentUser
+      });
+    });
+
+    await batch.commit();
+    loadEvents();
+    alert(`Imported ${events.length} calendar events.`);
+  } catch {
+    alert('Invalid ICS file.');
+  }
+
+  e.target.value = '';
+});

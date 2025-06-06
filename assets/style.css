@@ -1,0 +1,65 @@
+body {
+  background-color: #000000;
+  color: #FFFFFF;
+}
+
+input,
+button {
+  background-color: #000000;
+  color: #FFFFFF;
+  border-color: #333333;
+}
+
+input::placeholder {
+  color: #AAAAAA;
+}
+
+.subtle-btn {
+  border: 1px solid #555555;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+.subtle-btn:hover {
+  opacity: 1;
+  background-color: #111111;
+}
+
+#eventsList {
+  max-height: 80vh;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+#eventsList::-webkit-scrollbar {
+  display: none;
+}
+
+.text-red-500:hover {
+  opacity: 0.8;
+}
+
+/* Custom validation popup style */
+#formWarning {
+  z-index: 50;
+  background-color: #000000;
+  border: 1px solid #ff4d4d;
+  color: #ff4d4d;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  position: absolute;
+  bottom: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  box-shadow: 0 0 6px rgba(255, 77, 77, 0.5);
+}
+
+.hidden {
+  display: none;
+}
