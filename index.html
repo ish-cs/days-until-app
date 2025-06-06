@@ -48,8 +48,9 @@
   <div id="settingsMenu" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
     <div class="bg-black border border-gray-700 rounded-lg p-6 w-full max-w-md">
       
-      <div class="flex justify-between items-center pb-4 mb-4 border-b border-gray-700">
+      <div class="flex justify-between items-center pb-4 mb-4">
         <h2 class="text-2xl font-bold">Settings</h2>
+        <span id="userEmailDisplay" class="text-sm text-gray-400"></span>
         <button id="closeSettingsBtn" class="text-gray-500 text-3xl leading-none">&times;</button>
       </div>
 
@@ -63,7 +64,6 @@
             <input id="quickAddToggle" type="checkbox" class="accent-white h-5 w-5" />
           </label>
 
-          <!-- New Auto Delete Past Events Toggle -->
           <label for="autoDeleteToggle" class="flex items-center justify-between cursor-pointer p-3 rounded border border-gray-600 mb-2">
             <div class="flex flex-col">
                 <span>Auto-Delete Past Events</span>
@@ -83,7 +83,6 @@
               <label for="calendarFile" class="text-left w-full border border-gray-600 py-2 px-4 rounded cursor-pointer">Import from .ics Calendar</label>
               <input type="file" id="calendarFile" accept=".ics" class="hidden" />
 
-              <!-- New Delete All Events Button -->
               <button id="deleteAllEventsBtn" class="text-left w-full border border-red-600 hover:bg-red-900 py-2 px-4 rounded">Delete All Events</button>
           </div>
         </div>

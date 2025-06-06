@@ -32,6 +32,7 @@ const settingsMenu = document.getElementById('settingsMenu');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const autoDeleteToggle = document.getElementById('autoDeleteToggle');
 const deleteAllEventsBtn = document.getElementById('deleteAllEventsBtn');
+const userEmailDisplay = document.getElementById('userEmailDisplay'); // Added reference for email display
 
 
 let currentUser = null;
@@ -43,10 +44,12 @@ firebase.auth().onAuthStateChanged(async user => {
   if (user) {
     currentUser = user.uid;
     usernameDisplay.textContent = user.displayName || user.email;
+    userEmailDisplay.textContent = user.email; // Set user email in settings
     await showMainUI();
   } else {
     currentUser = null;
     usernameDisplay.textContent = '';
+    userEmailDisplay.textContent = ''; // Clear user email on logout
     showLoginUI();
   }
 });
@@ -411,8 +414,11 @@ function displayEvent(event) {
   });
 
   // --- EVENT NAME + TIME ---
-  const nameSpan = createEl('span', `text-black bg-${bgColor} px-1 rounded cursor-pointer`, event.name);
-  const timeSpan = createEl('span', 'text-xs text-gray-400 ml-2');
+  // Added truncation classes and inline-block for proper max-width behavior
+  const nameSpan = createEl('span', `text-black bg-${bgColor} px-1 rounded cursor-pointer inline-block overflow-hidden whitespace-nowrap text-ellipsis max-w-60 flex-shrink`); 
+  nameSpan.textContent = event.name;
+
+  const timeSpan = createEl('span', 'text-xs text-gray-400 ml-2 flex-shrink-0'); // Ensure time does not shrink
   if (event.time) {
     const [h, m] = event.time.split(':');
     const hour = parseInt(h, 10);
@@ -422,6 +428,8 @@ function displayEvent(event) {
   }
 
   nameSpan.addEventListener('click', () => {
+    // Temporarily remove truncation classes when editing
+    nameSpan.classList.remove('inline-block', 'overflow-hidden', 'whitespace-nowrap', 'text-ellipsis', 'max-w-60', 'flex-shrink'); 
     makeEditable(nameSpan, event.name, 'text', `text-black bg-${bgColor} px-1 rounded w-fit`, updateEventName, event.id);
   });
 
@@ -434,13 +442,17 @@ function displayEvent(event) {
     colorMenu.targetId = event.id;
   });
 
-  const text = createEl('div', 'text-left break-words');
+  // Define prefix string here
   const prefix = days < 0 ? `happened ${-days} day(s) ago`
               : days === 0 ? `is today`
               : `${days} day(s) until`;
-  text.append(`${prefix} `);
-  text.append(nameSpan);
-  if (event.time) text.append(timeSpan);
+
+  const textContentContainer = createEl('div', 'text-left flex items-baseline overflow-hidden'); 
+  // Added 'mr-1' (margin-right: 0.25rem) to prefixSpan to add space
+  const prefixSpan = createEl('span', 'flex-shrink-0 mr-1', `${prefix}`); 
+
+  textContentContainer.append(prefixSpan, nameSpan);
+  if (event.time) textContentContainer.append(timeSpan);
 
   // --- DELETE BUTTON ---
   const delBtn = createEl('button', 'text-red-500 hover:underline ml-2 whitespace-nowrap', 'Delete');
@@ -449,7 +461,7 @@ function displayEvent(event) {
   });
 
   const eventBox = createEl('div', 'p-4 border rounded flex justify-between items-center flex-1 min-w-[200px]');
-  eventBox.append(text, delBtn);
+  eventBox.append(textContentContainer, delBtn); // Use the new container here
 
   container.append(dateBox, eventBox);
   eventsList.appendChild(container);
