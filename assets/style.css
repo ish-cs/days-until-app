@@ -11,7 +11,7 @@ button {
 }
 
 input::placeholder {
-  color: #AAAAAA;
+  color: rgba(255, 255, 255, 0.15); /* Made placeholder text way more faint */
 }
 
 .subtle-btn {

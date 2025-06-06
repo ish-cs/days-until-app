@@ -83,12 +83,11 @@ settingsMenu.addEventListener('click', (e) => {
 
 
 // === UI Mode Switching ===
-// Moved updateFormMode here so it's defined before showMainUI calls it
 function updateFormMode(isQuickAdd) {
   dateInput.style.display = isQuickAdd ? 'none' : 'block';
   timeInput.style.display = isQuickAdd ? 'none' : 'block';
   nameInput.placeholder = isQuickAdd
-    ? "e.g. Dinner on July 9th at 9:45 PM"
+    ? "e.g. Dinner on July 9th at 9:45 PM (add 'red' for red highlight)"
     : "e.g. Dinner";
 }
 
@@ -119,16 +118,19 @@ function showLoginUI() {
 }
 
 // === UI Helpers ===
-// Modified showWarning to correctly apply color and border
+/**
+ * Displays a temporary warning/success message at the bottom of the form.
+ * @param {string} id - Unique ID for the warning element.
+ * @param {string} message - The message to display.
+ * @param {string} classes - Tailwind CSS classes for styling (e.g., 'text-green-500 border-green-500').
+ * @param {number} timeout - Duration in ms before the message disappears (0 for no auto-hide).
+ */
 function showWarning(id, message, classes = 'text-red-500 border-red-500', timeout = 1500) {
   const existing = document.getElementById(id);
   if (existing) existing.remove();
 
-  const warning = document.createElement('div');
+  const warning = createEl('div', `bg-black border rounded px-3 py-2 absolute bottom-20 ${classes}`, message);
   warning.id = id;
-  warning.textContent = message;
-  // Base styling for common properties, then apply the specific color and border
-  warning.className = `bg-black border rounded px-3 py-2 absolute bottom-20 ${classes}`;
   form.appendChild(warning);
   
   if (timeout > 0) {
@@ -136,65 +138,114 @@ function showWarning(id, message, classes = 'text-red-500 border-red-500', timeo
   }
 }
 
-// New function for modal confirmations with keyboard support
+/**
+ * Displays a modal confirmation dialog.
+ * @param {string} id - Unique ID for the modal overlay.
+ * @param {string} message - The message to display in the modal.
+ * @param {Function} onConfirm - Callback function if user confirms.
+ * @param {Function} onCancel - Callback function if user cancels.
+ */
 function showModalConfirmation(id, message, onConfirm, onCancel) {
   const existing = document.getElementById(id);
-  if (existing) existing.remove(); // Remove any existing confirmation
+  if (existing) existing.remove();
 
-  const modalOverlay = document.createElement('div');
+  const modalOverlay = createEl('div', 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]');
   modalOverlay.id = id;
-  modalOverlay.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100]'; // Higher z-index
 
-  const modalContent = document.createElement('div');
-  modalContent.className = 'bg-black border border-gray-700 rounded-lg p-6 w-full max-w-sm flex flex-col items-center gap-4';
+  const modalContent = createEl('div', 'bg-black border border-gray-700 rounded-lg p-6 w-full max-w-sm flex flex-col items-center gap-4');
+  const messageText = createEl('p', 'text-white text-center', message);
+  const buttonContainer = createEl('div', 'flex gap-4 mt-4');
 
-  const messageText = document.createElement('p');
-  messageText.textContent = message;
-  messageText.className = 'text-white text-center';
-
-  const buttonContainer = document.createElement('div');
-  buttonContainer.className = 'flex gap-4 mt-4';
-
-  const confirmButton = document.createElement('button');
-  confirmButton.textContent = 'Confirm';
-  confirmButton.className = 'px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700';
+  const confirmButton = createEl('button', 'px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700', 'Confirm');
   confirmButton.onclick = () => {
-    cleanupKeyboardListener(); // Remove listener before closing
+    cleanupKeyboardListener();
     onConfirm();
     modalOverlay.remove();
   };
 
-  const cancelButton = document.createElement('button');
-  cancelButton.textContent = 'Cancel';
-  cancelButton.className = 'px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700';
+  const cancelButton = createEl('button', 'px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700', 'Cancel');
   cancelButton.onclick = () => {
-    cleanupKeyboardListener(); // Remove listener before closing
+    cleanupKeyboardListener();
     onCancel();
     modalOverlay.remove();
   };
 
-  buttonContainer.appendChild(confirmButton);
-  buttonContainer.appendChild(cancelButton);
-  modalContent.appendChild(messageText);
-  modalContent.appendChild(buttonContainer);
+  buttonContainer.append(confirmButton, cancelButton);
+  modalContent.append(messageText, buttonContainer);
   modalOverlay.appendChild(modalContent);
-  document.body.appendChild(modalOverlay); // Append to body to ensure it's on top
+  document.body.appendChild(modalOverlay);
 
-  // Add keyboard listener for Enter/Escape
   const keyboardListener = (e) => {
     if (e.key === 'Enter') {
-      confirmButton.click(); // Simulate click on confirm
+      confirmButton.click();
     } else if (e.key === 'Escape') {
-      cancelButton.click(); // Simulate click on cancel
+      cancelButton.click();
     }
   };
 
-  // Function to remove the keyboard listener
   const cleanupKeyboardListener = () => {
     document.removeEventListener('keydown', keyboardListener);
   };
 
   document.addEventListener('keydown', keyboardListener);
+}
+
+/**
+ * Helper function to create a DOM element with classes and text content.
+ * @param {string} tag - The HTML tag name (e.g., 'div', 'span', 'button').
+ * @param {string} [classes=''] - Optional CSS classes to apply.
+ * @param {string} [text=''] - Optional text content for the element.
+ * @returns {HTMLElement} The created DOM element.
+ */
+function createEl(tag, classes = '', text = '') {
+  const el = document.createElement(tag);
+  if (classes) el.className = classes;
+  if (text) el.textContent = text;
+  return el;
+}
+
+/**
+ * Makes a display element editable by replacing it with an input field.
+ * @param {HTMLElement} displayElement - The element currently displaying the value.
+ * @param {string} initialValue - The current value to put in the input.
+ * @param {string} inputType - The type of input ('text' or 'date').
+ * @param {string} inputClasses - CSS classes for the input field.
+ * @param {Function} onUpdate - Callback function when the value is updated.
+ * @param {any} id - The ID of the event being edited.
+ */
+function makeEditable(displayElement, initialValue, inputType, inputClasses, onUpdate, id) {
+  const input = createEl('input', inputClasses);
+  input.type = inputType;
+  input.value = initialValue;
+
+  // Match dimensions for seamless transition
+  const originalWidth = displayElement.offsetWidth;
+  const originalHeight = displayElement.offsetHeight;
+  input.style.width = `${originalWidth}px`;
+  input.style.height = `${originalHeight}px`;
+
+  displayElement.replaceWith(input);
+  input.focus();
+
+  const handleBlur = () => {
+    const newValue = input.value.trim();
+    if (newValue && newValue !== initialValue) {
+      onUpdate(id, newValue);
+    } else {
+      loadEvents(); // Revert by reloading if no change or invalid
+    }
+    input.removeEventListener('blur', handleBlur);
+    input.removeEventListener('keydown', handleKeyDown);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      input.blur();
+    }
+  };
+
+  input.addEventListener('blur', handleBlur);
+  input.addEventListener('keydown', handleKeyDown);
 }
 
 
@@ -210,51 +261,60 @@ form.addEventListener('submit', async e => {
   const time = timeInput.value.trim();
 
   if (isQuickAdd) {
-    if (!name) return;
-
-    if (quickAddCooldown) {
-      showWarning('cooldownWarning', 'Please wait 4 seconds before adding another.');
-      return;
-    }
-
-    quickAddCooldown = true;
-    setTimeout(() => (quickAddCooldown = false), QUICK_ADD_COOLDOWN_MS);
-
-    try {
-      const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
-      const allEvents = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()})); // Include ID for context
-      
-      const response = await fetch('/.netlify/functions/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: name, context: allEvents })
-      });
-
-      const data = await response.json();
-      if (!data.name || !data.date) throw new Error();
-
-      await saveEvent(data.name, data.date, data.time || '');
-      nameInput.value = '';
-    } catch (err) {
-      console.error("Gemini call failed:", err); // Log the actual error
-      showWarning('formWarning', 'Could not understand. Try a clearer event and date.');
-    }
+    await handleQuickAddSubmission(name);
   } else {
     if (!name || !date) {
       showWarning('formWarning', 'Please fill out both fields.');
       return;
     }
-
-    await saveEvent(name, date, time);
+    await saveEvent(name, date, time, 'yellow-300');
     form.reset();
   }
 });
 
+/**
+ * Handles the submission logic for Quick Add Mode.
+ * @param {string} userInput - The raw text input from the user.
+ */
+async function handleQuickAddSubmission(userInput) {
+  if (!userInput) return;
+
+  if (quickAddCooldown) {
+    showWarning('cooldownWarning', 'Please wait 4 seconds before adding another.');
+    return;
+  }
+
+  quickAddCooldown = true;
+  setTimeout(() => (quickAddCooldown = false), QUICK_ADD_COOLDOWN_MS);
+
+  try {
+    const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
+    const allEvents = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+    
+    const response = await fetch('/.netlify/functions/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: userInput, context: allEvents })
+    });
+
+    const data = await response.json();
+    const eventColor = data.color || 'yellow-300'; 
+
+    if (!data.name || !data.date) throw new Error();
+
+    await saveEvent(data.name, data.date, data.time || '', eventColor);
+    nameInput.value = '';
+  } catch (err) {
+    console.error("Gemini call failed:", err);
+    showWarning('formWarning', 'Could not understand. Try a clearer event and date.');
+  }
+}
+
 // === Firestore Event Functions ===
-async function saveEvent(name, date, time = "") {
+async function saveEvent(name, date, time = "", bgColor = "yellow-300") {
   if (!currentUser) return;
   await db.collection('users').doc(currentUser).collection('events').add({
-    name, date, time, owner: currentUser
+    name, date, time, bgColor, owner: currentUser
   });
   loadEvents();
 }
@@ -302,7 +362,7 @@ async function deleteEvent(eventToDelete) {
   if (!currentUser || !eventToDelete?.id) return;
 
   showModalConfirmation(
-    `deleteSingleConfirm-${eventToDelete.id}`, // Unique ID for each event's confirmation
+    `deleteSingleConfirm-${eventToDelete.id}`,
     `Are you sure you want to delete "${eventToDelete.name}"? This cannot be undone.`,
     async () => {
       try {
@@ -340,52 +400,19 @@ function formatFullDate(dateStr) {
 function displayEvent(event) {
   const days = calculateDaysLeft(event.date);
   const fullDate = formatFullDate(event.date);
-  const bgColor = event.bgColor || 'yellow-300';
+  const bgColor = event.bgColor || 'yellow-300'; 
 
-  const container = document.createElement('div');
-  container.className = 'flex items-center gap-4 flex-wrap sm:flex-nowrap';
+  const container = createEl('div', 'flex items-center gap-4 flex-wrap sm:flex-nowrap');
 
   // --- DATE BOX ---
-  const dateBox = document.createElement('div');
-  dateBox.className = 'p-4 border rounded text-sm whitespace-nowrap cursor-pointer';
-  dateBox.textContent = fullDate;
-
+  const dateBox = createEl('div', 'p-4 border rounded text-sm whitespace-nowrap cursor-pointer', fullDate);
   dateBox.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'date';
-    input.value = event.date;
-
-    const originalWidth = dateBox.offsetWidth;
-    const originalHeight = dateBox.offsetHeight;
-
-    input.className = 'border rounded text-sm bg-black text-white p-4 text-center';
-    input.style.width = `${originalWidth}px`;
-    input.style.height = `${originalHeight}px`;
-
-    dateBox.replaceWith(input);
-    input.focus();
-
-    input.addEventListener('blur', () => {
-      const newDate = input.value;
-      if (newDate && newDate !== event.date) {
-        updateEventDate(event.id, newDate);
-      } else {
-        loadEvents();
-      }
-    });
-
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') input.blur();
-    });
+    makeEditable(dateBox, event.date, 'date', 'border rounded text-sm bg-black text-white p-4 text-center', updateEventDate, event.id);
   });
 
   // --- EVENT NAME + TIME ---
-  const nameSpan = document.createElement('span');
-  nameSpan.className = `text-black bg-${bgColor} px-1 rounded cursor-pointer`;
-  nameSpan.textContent = event.name;
-
-  const timeSpan = document.createElement('span');
-  timeSpan.className = 'text-xs text-gray-400 ml-2';
+  const nameSpan = createEl('span', `text-black bg-${bgColor} px-1 rounded cursor-pointer`, event.name);
+  const timeSpan = createEl('span', 'text-xs text-gray-400 ml-2');
   if (event.time) {
     const [h, m] = event.time.split(':');
     const hour = parseInt(h, 10);
@@ -395,25 +422,7 @@ function displayEvent(event) {
   }
 
   nameSpan.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = event.name;
-    input.className = `text-black bg-${bgColor} px-1 rounded`;
-    nameSpan.replaceWith(input);
-    input.focus();
-
-    input.addEventListener('blur', () => {
-      const newName = input.value.trim();
-      if (newName && newName !== event.name) {
-        updateEventName(event.id, newName);
-      } else {
-        loadEvents();
-      }
-    });
-
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') input.blur();
-    });
+    makeEditable(nameSpan, event.name, 'text', `text-black bg-${bgColor} px-1 rounded w-fit`, updateEventName, event.id);
   });
 
   nameSpan.addEventListener('contextmenu', e => {
@@ -425,8 +434,7 @@ function displayEvent(event) {
     colorMenu.targetId = event.id;
   });
 
-  const text = document.createElement('div');
-  text.className = 'text-left break-words';
+  const text = createEl('div', 'text-left break-words');
   const prefix = days < 0 ? `happened ${-days} day(s) ago`
               : days === 0 ? `is today`
               : `${days} day(s) until`;
@@ -435,27 +443,21 @@ function displayEvent(event) {
   if (event.time) text.append(timeSpan);
 
   // --- DELETE BUTTON ---
-  const delBtn = document.createElement('button');
-  delBtn.className = 'text-red-500 hover:underline ml-2 whitespace-nowrap';
-  delBtn.textContent = 'Delete';
+  const delBtn = createEl('button', 'text-red-500 hover:underline ml-2 whitespace-nowrap', 'Delete');
   delBtn.addEventListener('click', () => {
-    deleteEvent(event); // Call the main deleteEvent function
+    deleteEvent(event);
   });
 
-  const eventBox = document.createElement('div');
-  eventBox.className = 'p-4 border rounded flex justify-between items-center flex-1 min-w-[200px]';
-  eventBox.appendChild(text);
-  eventBox.appendChild(delBtn);
+  const eventBox = createEl('div', 'p-4 border rounded flex justify-between items-center flex-1 min-w-[200px]');
+  eventBox.append(text, delBtn);
 
-  container.appendChild(dateBox);
-  container.appendChild(eventBox);
+  container.append(dateBox, eventBox);
   eventsList.appendChild(container);
 }
 
 // === Color Menu ===
-const colorMenu = document.createElement('div');
+const colorMenu = createEl('div', 'fixed bg-black border border-gray-600 p-2 rounded hidden z-50');
 colorMenu.id = 'colorMenu';
-colorMenu.className = 'fixed bg-black border border-gray-600 p-2 rounded hidden z-50';
 
 const bgColors = [
   'yellow-300', 'red-300', 'green-300', 'blue-300', 'purple-300',
@@ -463,8 +465,7 @@ const bgColors = [
 ];
 
 bgColors.forEach(color => {
-  const option = document.createElement('div');
-  option.className = `cursor-pointer mb-1 last:mb-0 text-sm px-2 py-1 rounded bg-${color}`;
+  const option = createEl('div', `cursor-pointer mb-1 last:mb-0 text-sm px-2 py-1 rounded bg-${color}`);
   option.addEventListener('click', () => {
     if (colorMenu.targetSpan) {
       const clean = colorMenu.targetSpan.className.split(' ').filter(c => !c.startsWith('bg-'));
@@ -528,7 +529,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
     const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
-    const a = document.createElement('a');
+    const a = createEl('a');
     a.href = url;
     a.download = `${currentUser}_events.json`;
     a.click();
