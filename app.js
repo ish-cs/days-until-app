@@ -26,6 +26,13 @@ const usernameDisplay = document.getElementById('usernameDisplay');
 const quickAddToggle = document.getElementById('quickAddToggle');
 const addButton = form.querySelector('button[type="submit"]');
 
+// Settings Menu DOM References
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsMenu = document.getElementById('settingsMenu');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const autoDeleteToggle = document.getElementById('autoDeleteToggle'); // New DOM reference
+
+
 let currentUser = null;
 const QUICK_ADD_COOLDOWN_MS = 4000;
 let quickAddCooldown = false;
@@ -45,15 +52,34 @@ firebase.auth().onAuthStateChanged(async user => {
 
 loginBtn.addEventListener('click', () => {
   firebase.auth().signInWithPopup(provider).catch(err =>
-    alert('Login failed: ' + err.message)
+    // Replaced alert with console.error as per instructions
+    console.error('Login failed: ' + err.message)
   );
 });
 
 logoutBtn.addEventListener('click', () => {
   firebase.auth().signOut().catch(err =>
-    alert('Logout failed: ' + err.message)
+    // Replaced alert with console.error as per instructions
+    console.error('Logout failed: ' + err.message)
   );
 });
+
+// === Settings Menu Handlers ===
+settingsBtn.addEventListener('click', () => {
+  settingsMenu.classList.remove('hidden');
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+  settingsMenu.classList.add('hidden');
+});
+
+// Close menu when clicking outside the modal content
+settingsMenu.addEventListener('click', (e) => {
+    if (e.target.id === 'settingsMenu') {
+        settingsMenu.classList.add('hidden');
+    }
+});
+
 
 // === UI Mode Switching ===
 async function showMainUI() {
@@ -67,6 +93,10 @@ async function showMainUI() {
   const quickAdd = userDoc.exists ? userDoc.data().quickAddMode : false;
   quickAddToggle.checked = quickAdd;
 
+  // New: Get and set autoDeleteMode
+  const autoDelete = userDoc.exists ? userDoc.data().autoDeleteMode : false;
+  autoDeleteToggle.checked = autoDelete;
+
   updateFormMode(quickAdd);
   loadEvents();
 }
@@ -76,6 +106,7 @@ function showLoginUI() {
   mainSection.classList.add('hidden');
   document.getElementById('titleRow').classList.add('hidden');
   form.style.display = 'none';
+  settingsMenu.classList.add('hidden'); // Hide settings on logout
 }
 
 // === UI Helpers ===
@@ -162,7 +193,26 @@ async function saveEvent(name, date, time = "") {
 async function loadEvents() {
   if (!currentUser) return;
   const snapshot = await db.collection('users').doc(currentUser).collection('events').get();
-  const events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  let events = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+  // New: Auto-delete past events if toggle is enabled
+  const userDoc = await db.collection('users').doc(currentUser).get();
+  const autoDelete = userDoc.exists ? userDoc.data().autoDeleteMode : false;
+
+  if (autoDelete) {
+    const batch = db.batch();
+    const filteredEvents = [];
+    events.forEach(event => {
+      if (calculateDaysLeft(event.date) < 0) {
+        batch.delete(db.collection('users').doc(currentUser).collection('events').doc(event.id));
+      } else {
+        filteredEvents.push(event);
+      }
+    });
+    await batch.commit();
+    events = filteredEvents; // Update events array with only non-deleted events
+  }
+
   events.sort((a, b) => calculateDaysLeft(a.date) - calculateDaysLeft(b.date));
   eventsList.innerHTML = '';
   events.forEach(event => displayEvent(event));
@@ -182,6 +232,8 @@ async function updateEventDate(id, newDate) {
 
 async function deleteEvent(eventToDelete) {
   if (!currentUser || !eventToDelete?.id) return;
+  // Replaced confirm with console.log as per instructions
+  console.log(`Delete "${eventToDelete.name}"?`);
   await db.collection('users').doc(currentUser).collection('events').doc(eventToDelete.id).delete();
   loadEvents();
 }
@@ -190,6 +242,9 @@ async function deleteEvent(eventToDelete) {
 function calculateDaysLeft(dateStr) {
   const eventDate = new Date(dateStr);
   const now = new Date();
+  // Set time to 00:00:00 for accurate day calculation
+  eventDate.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
   return Math.ceil((eventDate - now) / (1000 * 60 * 60 * 24));
 }
 
@@ -217,7 +272,15 @@ function displayEvent(event) {
     const input = document.createElement('input');
     input.type = 'date';
     input.value = event.date;
-    input.className = 'border rounded text-sm bg-black text-white w-[109px] h-[53px] text-center';
+
+    // Get the computed width and height of the current dateBox
+    const originalWidth = dateBox.offsetWidth;
+    const originalHeight = dateBox.offsetHeight;
+
+    // Apply classes and inline styles to match the original box
+    input.className = 'border rounded text-sm bg-black text-white p-4 text-center'; // Use p-4 for padding, text-center for alignment
+    input.style.width = `${originalWidth}px`;
+    input.style.height = `${originalHeight}px`;
 
     dateBox.replaceWith(input);
     input.focus();
@@ -227,7 +290,8 @@ function displayEvent(event) {
       if (newDate && newDate !== event.date) {
         updateEventDate(event.id, newDate);
       } else {
-        loadEvents();
+        // If no new date or invalid, revert to displaying the formatted text
+        loadEvents(); // Reloads all events, which recreates the dateBox
       }
     });
 
@@ -296,7 +360,9 @@ function displayEvent(event) {
   delBtn.className = 'text-red-500 hover:underline ml-2 whitespace-nowrap';
   delBtn.textContent = 'Delete';
   delBtn.addEventListener('click', () => {
-    if (confirm(`Delete "${event.name}"?`)) deleteEvent(event);
+    // Replaced confirm with console.log as per instructions
+    console.log(`Delete "${event.name}"?`);
+    deleteEvent(event);
   });
 
   const eventBox = document.createElement('div');
@@ -334,7 +400,13 @@ bgColors.forEach(color => {
 });
 
 document.body.appendChild(colorMenu);
-document.addEventListener('click', () => colorMenu.classList.add('hidden'));
+document.addEventListener('click', (e) => {
+  // Only hide if the click is outside the color menu itself and not on a child of the color menu
+  if (!colorMenu.contains(e.target) && e.target !== colorMenu.targetSpan) {
+    colorMenu.classList.add('hidden');
+  }
+});
+
 
 async function saveHighlightColor(id, color) {
   if (!currentUser) return;
@@ -350,6 +422,16 @@ quickAddToggle.addEventListener('change', () => {
     db.collection('users').doc(currentUser).set({ quickAddMode: isQuick }, { merge: true });
   }
 });
+
+// New: Auto-Delete Toggle Save
+autoDeleteToggle.addEventListener('change', async () => {
+  const isAutoDelete = autoDeleteToggle.checked;
+  if (currentUser) {
+    await db.collection('users').doc(currentUser).set({ autoDeleteMode: isAutoDelete }, { merge: true });
+    loadEvents(); // Reload events to apply auto-delete immediately
+  }
+});
+
 
 // === EXPORT to JSON ===
 document.getElementById('exportBtn').addEventListener('click', async () => {
@@ -400,9 +482,11 @@ document.getElementById('importFile').addEventListener('change', async e => {
 
     await batch.commit();
     loadEvents();
-    alert(`Imported ${imported.length} events.`);
+    // Replaced alert with console.log as per instructions
+    console.log(`Imported ${imported.length} events.`);
   } catch {
-    alert('Invalid JSON file.');
+    // Replaced alert with console.error as per instructions
+    console.error('Invalid JSON file.');
   }
 
   e.target.value = '';
@@ -450,9 +534,11 @@ document.getElementById('calendarFile').addEventListener('change', async e => {
 
     await batch.commit();
     loadEvents();
-    alert(`Imported ${events.length} calendar events.`);
+    // Replaced alert with console.log as per instructions
+    console.log(`Imported ${events.length} calendar events.`);
   } catch {
-    alert('Invalid ICS file.');
+    // Replaced alert with console.error as per instructions
+    console.error('Invalid ICS file.');
   }
 
   e.target.value = '';
