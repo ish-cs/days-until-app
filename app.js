@@ -33,6 +33,7 @@ const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const autoDeleteToggle = document.getElementById('autoDeleteToggle');
 const deleteAllEventsBtn = document.getElementById('deleteAllEventsBtn');
 const userEmailDisplay = document.getElementById('userEmailDisplay'); // Added reference for email display
+const showDayOfWeekToggle = document.getElementById('showDayOfWeekToggle'); // New DOM reference for day of week toggle
 
 
 let currentUser = null;
@@ -107,6 +108,9 @@ async function showMainUI() {
 
   const autoDelete = userDoc.exists ? userDoc.data().autoDeleteMode : false;
   autoDeleteToggle.checked = autoDelete;
+
+  const showDayOfWeek = userDoc.exists ? userDoc.data().showDayOfWeekMode : false; // Load showDayOfWeekMode
+  showDayOfWeekToggle.checked = showDayOfWeek; // Set toggle state
 
   updateFormMode(quickAdd);
   loadEvents();
@@ -215,13 +219,19 @@ function createEl(tag, classes = '', text = '') {
  * @param {string} initialValue - The current value to put in the input.
  * @param {string} inputType - The type of input ('text' or 'date').
  * @param {string} inputClasses - CSS classes for the input field.
- * @param {Function} onUpdate - Callback function when the value is updated.
- * @param {any} id - The ID of the event being edited.
+ * @param {Function} updateFirestoreFunc - Function to call to update Firestore (e.g., updateEventName, updateEventDate).
+ * It should accept (id, newValue) and return a Promise.
+ * @param {Function} formatDisplayFunc - Function to format the new value for display (e.g., formatFullDate, or identity for name).
+ * @param {any} eventId - The ID of the event being edited.
  */
-function makeEditable(displayElement, initialValue, inputType, inputClasses, onUpdate, id) {
+function makeEditable(displayElement, initialValue, inputType, inputClasses, updateFirestoreFunc, formatDisplayFunc, eventId) {
   const input = createEl('input', inputClasses);
   input.type = inputType;
   input.value = initialValue;
+
+  const originalDisplayElement = displayElement; 
+  const parent = displayElement.parentNode; 
+  if (!parent) return; 
 
   // Match dimensions for seamless transition
   const originalWidth = displayElement.offsetWidth;
@@ -232,20 +242,43 @@ function makeEditable(displayElement, initialValue, inputType, inputClasses, onU
   displayElement.replaceWith(input);
   input.focus();
 
-  const handleBlur = () => {
-    const newValue = input.value.trim();
-    if (newValue && newValue !== initialValue) {
-      onUpdate(id, newValue);
-    } else {
-      loadEvents(); // Revert by reloading if no change or invalid
-    }
+  const cleanup = () => {
     input.removeEventListener('blur', handleBlur);
     input.removeEventListener('keydown', handleKeyDown);
   };
 
+  const revertToOriginal = () => {
+    // If input is still in DOM, replace it with the original element
+    if (input.parentNode === parent) {
+      input.replaceWith(originalDisplayElement);
+    }
+  };
+
+  const handleBlur = async () => {
+    const newValue = input.value.trim();
+    if (newValue && newValue !== initialValue) {
+      try {
+        await updateFirestoreFunc(eventId, newValue); 
+        originalDisplayElement.textContent = formatDisplayFunc(newValue); 
+        input.replaceWith(originalDisplayElement); 
+        showWarning('updateSuccess', 'Event updated successfully!', 'text-green-500 border-green-500');
+      } catch (err) {
+        showWarning('updateError', 'Failed to update event.', 'text-red-500 border-red-500');
+        console.error("Update failed:", err);
+        revertToOriginal(); 
+      }
+    } else {
+      revertToOriginal(); 
+    }
+    cleanup();
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      input.blur();
+      input.blur(); 
+    } else if (e.key === 'Escape') {
+      revertToOriginal(); 
+      cleanup();
     }
   };
 
@@ -352,15 +385,13 @@ async function loadEvents() {
 }
 
 async function updateEventName(id, newName) {
-  if (!currentUser || !newName) return;
+  if (!currentUser || !newName) throw new Error("Invalid name or user.");
   await db.collection('users').doc(currentUser).collection('events').doc(id).update({ name: newName });
-  loadEvents();
 }
 
 async function updateEventDate(id, newDate) {
-  if (!currentUser || !newDate) return;
+  if (!currentUser || !newDate) throw new Error("Invalid date or user.");
   await db.collection('users').doc(currentUser).collection('events').doc(id).update({ date: newDate });
-  loadEvents();
 }
 
 async function deleteEvent(eventToDelete) {
@@ -401,18 +432,37 @@ function formatFullDate(dateStr) {
   });
 }
 
+function getDayOfWeek(dateStr) {
+  const eventDate = new Date(dateStr);
+  return eventDate.toLocaleDateString('en-GB', { weekday: 'short' });
+}
+
 // === Display Event ===
-function displayEvent(event) {
+async function displayEvent(event) {
   const days = calculateDaysLeft(event.date);
   const fullDate = formatFullDate(event.date);
   const bgColor = event.bgColor || 'yellow-300'; 
 
+  const userDoc = await db.collection('users').doc(currentUser).get();
+  const showDayOfWeek = userDoc.exists ? userDoc.data().showDayOfWeekMode : false;
+
   const container = createEl('div', 'flex items-center gap-4 flex-wrap sm:flex-nowrap');
 
   // --- DATE BOX ---
-  const dateBox = createEl('div', 'p-4 border rounded text-sm whitespace-nowrap cursor-pointer', fullDate);
+  let dateBoxText = fullDate;
+  if (showDayOfWeek) {
+    dateBoxText = `${getDayOfWeek(event.date)}, ${fullDate}`;
+  }
+  const dateBox = createEl('div', 'p-4 border rounded text-sm whitespace-nowrap cursor-pointer', dateBoxText);
   dateBox.addEventListener('click', () => {
-    makeEditable(dateBox, event.date, 'date', 'border rounded text-sm bg-black text-white p-4 text-center', updateEventDate, event.id);
+    const formatDateForDisplay = (dateStr) => {
+      let formatted = formatFullDate(dateStr);
+      if (showDayOfWeek) { // Use the value captured from the displayEvent scope
+        formatted = `${getDayOfWeek(dateStr)}, ${formatted}`;
+      }
+      return formatted;
+    };
+    makeEditable(dateBox, event.date, 'date', 'border rounded text-sm bg-black text-white p-4 text-center', updateEventDate, formatDateForDisplay, event.id);
   });
 
   // --- EVENT NAME + TIME ---
@@ -432,7 +482,7 @@ function displayEvent(event) {
   nameSpan.addEventListener('click', () => {
     // Temporarily remove truncation classes when editing
     nameSpan.classList.remove('inline-block', 'overflow-hidden', 'whitespace-nowrap', 'text-ellipsis', 'max-w-60', 'flex-shrink'); 
-    makeEditable(nameSpan, event.name, 'text', `text-black bg-${bgColor} px-1 rounded w-fit`, updateEventName, event.id);
+    makeEditable(nameSpan, event.name, 'text', `text-black bg-${bgColor} px-1 rounded w-fit`, updateEventName, (val) => val, event.id);
   });
 
   nameSpan.addEventListener('contextmenu', e => {
@@ -520,6 +570,15 @@ autoDeleteToggle.addEventListener('change', async () => {
   if (currentUser) {
     await db.collection('users').doc(currentUser).set({ autoDeleteMode: isAutoDelete }, { merge: true });
     loadEvents();
+  }
+});
+
+// Show Day of Week Toggle Save
+showDayOfWeekToggle.addEventListener('change', async () => {
+  const isShowDayOfWeek = showDayOfWeekToggle.checked;
+  if (currentUser) {
+    await db.collection('users').doc(currentUser).set({ showDayOfWeekMode: isShowDayOfWeek }, { merge: true });
+    loadEvents(); // Reload events to reflect the change
   }
 });
 
