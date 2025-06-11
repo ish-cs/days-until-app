@@ -4,3 +4,6 @@ git commit -m "latest"
 git push
 
 
+
+----->    HOW TO RUN    <-----
+netlify dev

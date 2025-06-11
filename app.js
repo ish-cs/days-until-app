@@ -132,7 +132,8 @@ function showWarning(id, message, classes = 'text-red-500 border-red-500', timeo
   const existing = document.getElementById(id);
   if (existing) existing.remove();
 
-  const warning = createEl('div', `bg-black border rounded px-3 py-2 absolute bottom-20 ${classes}`, message);
+  // Added shadow-none, outline-none, left-1/2, and -translate-x-1/2 for consistent UI
+  const warning = createEl('div', `bg-black border rounded px-3 py-2 absolute bottom-20 shadow-none outline-none left-1/2 -translate-x-1/2 ${classes}`, message);
   warning.id = id;
   form.appendChild(warning);
   
@@ -159,7 +160,7 @@ function showModalConfirmation(id, message, onConfirm, onCancel) {
   const messageText = createEl('p', 'text-white text-center', message);
   const buttonContainer = createEl('div', 'flex gap-4 mt-4');
 
-  // Applying 'subtle-btn' class and retaining specific colors/hovers
+  // Updated classes for confirm and cancel buttons to match subtle-btn styling
   const confirmButton = createEl('button', 'subtle-btn text-left w-full border-red-600 hover:bg-red-900', 'Confirm');
   confirmButton.onclick = () => {
     cleanupKeyboardListener();
