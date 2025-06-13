@@ -63,3 +63,69 @@ input::placeholder {
 .hidden {
   display: none;
 }
+
+
+/* --- Mobile UI Improvements --- */
+/* Apply styles specifically for screens smaller than 640px (Tailwind's 'sm' breakpoint) */
+@media (max-width: 639px) {
+  /* Make the main content area (where events list is) take up less horizontal padding */
+  #mainSection {
+    padding-left: 0.5rem; /* Equivalent to px-2 or slightly less */
+    padding-right: 0.5rem;
+  }
+
+  /* Ensure date and event main box always stay on one line for smaller screens */
+  /* This targets the eventBox which has .flex.items-center.gap-4.flex-wrap.sm\:flex-nowrap */
+  #eventsList .flex.items-center.gap-4.flex-wrap.sm\:flex-nowrap {
+      flex-wrap: nowrap; /* Force no wrapping on small screens */
+  }
+
+  /* Reduce padding on the individual date and event boxes */
+  #eventsList .flex.items-center.gap-4.flex-wrap.sm\:flex-nowrap > div.p-4.border.rounded {
+    padding: 0.75rem; /* Reduce from p-4 (1rem) to p-3 (0.75rem) */
+    font-size: 0.8rem; /* Slightly smaller font for date box */
+  }
+
+  /* Target the event name and time elements directly for smaller text */
+  #eventsList .text-black.bg-*,
+  #eventsList .text-xs.text-gray-400 {
+    font-size: 0.75rem; /* Smaller than text-sm (0.875rem) or text-xs (0.75rem) */
+  }
+
+  /* Make the prefix text (e.g., "happened X days ago") slightly smaller */
+  #eventsList .text-left.flex.items-baseline.overflow-hidden .flex-shrink-0 {
+      font-size: 0.8rem; /* Slightly smaller than default */
+  }
+
+  /* Adjust the minimum width of the event box to allow more items on a single line on very small screens */
+  #eventsList .flex-1.min-w-\[200px\] {
+    min-width: unset; /* Remove the fixed min-width to allow more flexible shrinking */
+    flex-grow: 1; /* Allow it to grow */
+    flex-basis: 0; /* Important for flex-grow to work correctly */
+  }
+
+  /* Further condense the delete button spacing */
+  #eventsList .ml-2.whitespace-nowrap {
+      margin-left: 0.5rem; /* Reduce default ml-2 (0.5rem) or ml-3 if it was larger */
+      font-size: 0.8rem; /* Make delete button text slightly smaller */
+  }
+
+  /* Reduce gap between date box and event box for compactness */
+  #eventsList .flex.items-center.gap-4.flex-wrap.sm\:flex-nowrap {
+    gap: 0.5rem; /* Reduce gap from gap-4 (1rem) to gap-2 (0.5rem) */
+  }
+
+  /* Adjust the form input sizes for better mobile fit */
+  #eventForm input {
+    padding: 0.6rem; /* Slightly reduce input padding */
+    font-size: 0.875rem; /* Match default text size for inputs */
+  }
+  
+  /* Make form inputs take up more width on very small screens */
+  #eventForm #eventName {
+      width: 40%; /* Increase name input width */
+  }
+  #eventForm #eventDate, #eventForm #eventTime {
+      width: 25%; /* Increase date/time input width slightly */
+  }
+}
