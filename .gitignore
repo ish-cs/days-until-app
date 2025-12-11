@@ -3,5 +3,3 @@ node_modules/
 .DS_Store
 .venv/
 *.log
-# Local Netlify folder
-.netlify

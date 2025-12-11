@@ -7,6 +7,5 @@
 
 [dev]
   envFiles = [".env"]
-
 [build.environment]
   NODE_VERSION = "20"
