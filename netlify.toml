@@ -1,0 +1,12 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[dev]
+  envFiles = [".env"]
+
+[build.environment]
+  NODE_VERSION = "20"
