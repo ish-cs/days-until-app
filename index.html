@@ -1,112 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Days Until...</title>
-
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-  <link rel="icon" href="favicon.ico" />
-  <link rel="stylesheet" href="assets/style.css" />
-
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#007bff"> <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png"> <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="DaysUntil">
+  <link rel="icon" href="/assets/favicon.ico" />
+  <link rel="stylesheet" href="/assets/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#007bff" />
+  <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DaysUntil" />
 </head>
-
-<body class="flex flex-col min-h-screen text-white bg-black">
-
-  <header id="titleRow" class="hidden flex w-full max-w-4xl justify-between items-center mx-auto mt-6 px-4">
-    <h1 class="text-3xl font-bold">Days Until...</h1>
-    <div id="userPanel" class="hidden flex items-center gap-2">
-      <span id="usernameDisplay" class="text-base mx-3"></span>
-      <a href="timer.html" class="subtle-btn cursor-pointer" title="Timer">⏱️</a>
-      <button id="settingsBtn" class="subtle-btn cursor-pointer" title="Settings">⚙️</button>
-      <button id="logoutBtn" class="subtle-btn cursor-pointer">Logout</button>
-    </div>
-  </header>
-
-  <main id="authSection" class="flex flex-col items-center justify-center min-h-screen gap-6 text-center px-4">
-    <h1 class="text-3xl font-bold">Days Until...</h1>
-    <button id="googleLoginBtn" class="subtle-btn cursor-pointer">Sign in with Google</button>
-  </main>
-
-  <section id="mainSection" class="hidden">
-    <div id="eventsList" class="flex flex-col gap-4 w-full max-w-2xl mx-auto mt-6"></div>
-
-    <form id="eventForm" autocomplete="off"
-      class="hidden fixed bottom-0 left-0 right-0 bg-[#000000] border-t border-gray-700 flex justify-center items-center gap-3 p-4">
-      <input id="eventName" type="text" placeholder="Event name or 'Dinner on July 9'"
-        class="p-2 border rounded w-1/3" />
-      <input id="eventDate" type="date" class="p-2 border rounded w-1/6" />
-      <input id="eventTime" type="time" class="p-2 border rounded w-1/6" />
-      <button type="submit" class="border py-2 px-4 rounded hover:opacity-80">Add</button>
-    </form>
-    
-    </section>
-  
-  <div id="settingsMenu" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-    <div class="bg-black border border-gray-700 rounded-lg p-6 w-full max-w-md">
-      
-      <div class="flex justify-between items-center pb-4 mb-4">
-        <h2 class="text-2xl font-bold">Settings</h2>
-        <span id="userEmailDisplay" class="text-sm text-gray-400"></span>
-        <button id="closeSettingsBtn" class="text-gray-500 text-3xl leading-none">&times;</button>
-      </div>
-
-      <div class="space-y-6">
-        
-        <label for="quickAddToggle" class="flex items-center justify-between cursor-pointer p-3 rounded border border-gray-600 mb-2">
-            <div class="flex flex-col">
-                <span>Quick Add Mode</span>
-                <span class="text-sm text-gray-400">Use natural language to create events.</span>
-            </div>
-            <input id="quickAddToggle" type="checkbox" class="accent-white h-5 w-5" />
-          </label>
-
-          <label for="autoDeleteToggle" class="flex items-center justify-between cursor-pointer p-3 rounded border border-gray-600 mb-2">
-            <div class="flex flex-col">
-                <span>Auto-Delete Past Events</span>
-                <span class="text-sm text-gray-400">Automatically remove events after their date passes.</span>
-            </div>
-            <input id="autoDeleteToggle" type="checkbox" class="accent-white h-5 w-5" />
-          </label>
-
-          <label for="showDayOfWeekToggle" class="flex items-center justify-between cursor-pointer p-3 rounded border border-gray-600 mb-2">
-            <div class="flex flex-col">
-                <span>Show Day of Week</span>
-                <span class="text-sm text-gray-400">Display the day of the week for each event.</span>
-            </div>
-            <input id="showDayOfWeekToggle" type="checkbox" class="accent-white h-5 w-5" />
-          </label>
-        
-        <div>
-          <h3 class="text-lg font-semibold mb-2">Manage Data</h3>
-          <div class="flex flex-col gap-2">
-              <button id="exportBtn" class="subtle-btn text-left w-full">Export Events to .json</button>
-              
-              <label for="importFile" class="subtle-btn text-left w-full cursor-pointer">Import Events from .json</label>
-              <input type="file" id="importFile" accept=".json" class="hidden" />
-
-              <label for="calendarFile" class="subtle-btn text-left w-full cursor-pointer">Import from .ics Calendar</label>
-              <input type="file" id="calendarFile" accept=".ics" class="hidden" />
-
-              <button id="deleteAllEventsBtn" class="subtle-btn text-left w-full border-red-600 hover:bg-red-900">Delete All Events</button>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
-
 </html>

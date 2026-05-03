@@ -1,6 +1,22 @@
 [build]
-  publish = "."
+  publish = "dist"
   functions = "netlify/functions"
+
+# Avoid stale app shell / SW so reload always reconciles HTML ↔ hashed JS.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
 
 [functions]
   node_bundler = "esbuild"
