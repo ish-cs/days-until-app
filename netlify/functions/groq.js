@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import { extractStructuredDateTime } from "./dateExtract.js";
+import { extractStructuredDateTime, extractFallbackTitle } from "./dateExtract.js";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -7,6 +7,29 @@ const ALLOWED_COLORS = new Set([
   "yellow-300", "red-300", "green-300", "blue-300", "purple-300",
   "pink-300", "orange-300", "teal-300", "gray-300", "white",
 ]);
+
+/** First dash segment "red - …" → tailwind key when user names a color plainly */
+const LEADING_COLOR_HINT = {
+  yellow: "yellow-300",
+  red: "red-300",
+  green: "green-300",
+  blue: "blue-300",
+  purple: "purple-300",
+  pink: "pink-300",
+  orange: "orange-300",
+  teal: "teal-300",
+  gray: "gray-300",
+  grey: "gray-300",
+  white: "white",
+};
+
+function colorHintFromLeadingSegment(userInput) {
+  const raw = userInput?.trim().split(/\s*-\s*/)[0]?.trim().toLowerCase();
+  if (!raw) return null;
+  const word = raw.replace(/-300$/i, "");
+  const key = LEADING_COLOR_HINT[word];
+  return key && ALLOWED_COLORS.has(key) ? key : null;
+}
 
 function weekdayLongFromISO(iso) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -54,11 +77,21 @@ Return ONLY JSON:
     const llmTime = typeof parsed.time === "string" ? parsed.time.trim() : "";
     const llmColor = typeof parsed.color === "string" ? parsed.color.trim() : "";
 
+    let name = parsed.name;
+    if (typeof name === "string") name = name.trim();
+    if (!name || String(name).toLowerCase() === "null") {
+      name = extractFallbackTitle(userInput);
+    }
+
+    const hintColor = colorHintFromLeadingSegment(userInput);
+    const resolvedColor =
+      ALLOWED_COLORS.has(llmColor) ? llmColor : hintColor || "yellow-300";
+
     const merged = {
-      name: parsed.name ?? null,
+      name: name || null,
       date: structured.date ?? null,
       time: structured.time || llmTime || "",
-      color: ALLOWED_COLORS.has(llmColor) ? llmColor : "yellow-300",
+      color: resolvedColor,
     };
 
     return {

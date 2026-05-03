@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   collection, onSnapshot, doc, deleteDoc, updateDoc, writeBatch
 } from 'firebase/firestore';
@@ -11,6 +11,15 @@ export default function EventList({
   calendarHighlightDate = null
 }) {
   const [events, setEvents] = useState([]);
+  /** One open color context menu: which event + pointer position */
+  const [colorMenu, setColorMenu] = useState(null);
+  const closeColorPicker = useCallback(() => setColorMenu(null), []);
+
+  useEffect(() => {
+    if (colorMenu && !events.some((e) => e.id === colorMenu.eventId)) {
+      setColorMenu(null);
+    }
+  }, [events, colorMenu]);
 
   useEffect(() => {
     if (!calendarHighlightDate || events.length === 0) return;
@@ -99,6 +108,13 @@ export default function EventList({
           onColorChange={handleColorSelect}
           showToast={showToast}
           highlighted={calendarHighlightDate != null && event.date === calendarHighlightDate}
+          colorPicker={
+            colorMenu?.eventId === event.id
+              ? { x: colorMenu.x, y: colorMenu.y }
+              : null
+          }
+          onOpenColorPicker={(pid, x, y) => setColorMenu({ eventId: pid, x, y })}
+          onCloseColorPicker={closeColorPicker}
         />
       ))}
     </div>

@@ -9,15 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "chrono-node": "^2.9.0",
     "firebase": "^10.12.0",
+    "groq-sdk": "^1.1.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
-    "dotenv": "^16.4.5",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
+    "concurrently": "^9.1.2",
+    "dotenv": "^16.4.5",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "vite": "^5.3.1"
