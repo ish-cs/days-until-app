@@ -64,6 +64,19 @@ body::after {
 
 #root { position: relative; z-index: 1; }
 
+/* Dynamic viewport + scroll clearance for fixed composer (mobile browsers) */
+html {
+  scroll-padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 961px) {
+  html { scroll-padding-bottom: 0; }
+}
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .serif { font-family: 'Instrument Serif', 'Times New Roman', serif; font-weight: 400; letter-spacing: -0.01em; }
 .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
 
@@ -210,9 +223,15 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   min-height: 100vh;
 }
 @media (max-width: 960px) {
-  .app-shell { grid-template-columns: 1fr; padding: 20px var(--layout-pad-x) 124px; gap: 20px; }
-  .sidebar { order: 2; }
-  .main-col { order: 1; }
+  /* Calendar first on phones: pick dates without scrolling past the whole list */
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) var(--layout-pad-x)
+      calc(136px + env(safe-area-inset-bottom, 0px));
+    gap: 16px;
+  }
+  .sidebar { order: 1; }
+  .main-col { order: 2; }
 }
 
 /* Sidebar sticky */
@@ -342,6 +361,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 /* Modal */
 .modal-backdrop {
   position: fixed; inset: 0;
+  box-sizing: border-box;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -635,6 +660,9 @@ button.cal-cell:focus-visible {
   display: flex; gap: 6px; opacity: 0; transition: opacity 160ms ease;
 }
 .event-card:hover .row-actions { opacity: 1; }
+@media (hover: none), (max-width: 768px) {
+  .row-actions { opacity: 1; }
+}
 
 .icon-btn {
   width: 30px; height: 30px;
@@ -653,6 +681,151 @@ button.cal-cell:focus-visible {
   padding: 60px 24px;
   text-align: center;
   color: var(--ink-2);
+}
+
+/* ─── Phone / touch polish ─── */
+.sidebar-panel {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.event-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.auth-card {
+  padding: 40px 28px;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+.auth-title {
+  font-size: clamp(2rem, 8vw, 3rem);
+  margin: 0 0 8px;
+}
+.auth-signin {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 24px;
+  font-size: 16px;
+  touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+  .composer-dock .composer-inner {
+    padding: 14px 14px;
+    border-radius: 14px;
+  }
+  .composer-main {
+    gap: 10px;
+    align-items: stretch;
+  }
+  /* ≥16px avoids iOS zooming focused inputs */
+  .composer-field.input {
+    font-size: 16px;
+    min-height: 48px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .composer-submit {
+    min-height: 48px;
+    min-width: 72px;
+    touch-action: manipulation;
+  }
+  .composer-meta .input {
+    font-size: 16px;
+    min-height: 48px;
+  }
+  .composer-swatch {
+    width: 28px;
+    height: 28px;
+    touch-action: manipulation;
+  }
+
+  .icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    font-size: 18px;
+    touch-action: manipulation;
+  }
+
+  .btn {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 15px;
+    touch-action: manipulation;
+  }
+
+  .sidebar-panel {
+    padding: 18px 16px;
+    gap: 16px;
+    border-radius: 16px;
+  }
+
+  .cal-grid {
+    gap: 4px;
+  }
+  .cal-cell {
+    font-size: 13px;
+    border-radius: 8px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  .cal-cell.has-event::after {
+    bottom: 5px;
+  }
+  .cal-head {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+  .cal-head > div {
+    padding: 6px 0;
+  }
+
+  .settings-toggle {
+    min-height: 48px;
+    padding: 12px 14px;
+  }
+  .settings-toggle input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .empty {
+    padding: 40px 16px;
+  }
+
+  .event-color-menu {
+    grid-template-columns: repeat(5, 32px);
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .event-color-swatch {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (hover: none) {
+  .event-card:hover {
+    transform: none;
+  }
+  .event-card:active {
+    background: var(--glass-bg-strong);
+  }
 }
 
 /* Tailwind reset compat */

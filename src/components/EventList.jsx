@@ -96,7 +96,7 @@ export default function EventList({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="event-stack">
       {events.map(event => (
         <EventItem
           key={event.id}

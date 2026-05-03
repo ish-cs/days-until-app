@@ -6,7 +6,7 @@ export default function Sidebar({
   calendarSelectedDate, onCalendarSelectDate
 }) {
   return (
-    <div className="glass" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="glass sidebar-panel">
       <div>
         <h1 className="serif" style={{ fontSize: 28, marginBottom: 4, margin: 0 }}>Days Until…</h1>
         <div style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 6 }}>
