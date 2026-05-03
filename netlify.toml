@@ -1,6 +1,12 @@
 [build]
+  command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"
+
+# Vite lives in devDependencies — ensure it’s installed on Netlify (avoid omit-dev).
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_CONFIG_PRODUCTION = "false"
 
 # Avoid stale app shell / SW so reload always reconciles HTML ↔ hashed JS.
 [[headers]]
@@ -23,5 +29,3 @@
 
 [dev]
   envFiles = [".env"]
-[build.environment]
-  NODE_VERSION = "20"
