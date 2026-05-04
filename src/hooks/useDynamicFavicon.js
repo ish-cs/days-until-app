@@ -7,8 +7,7 @@ function buildFaviconSvg(date) {
   const month = MONTH_ABBR[date.getMonth()];
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <rect width="32" height="32" rx="4" fill="#ffffff"/>
-  <rect width="32" height="9" rx="0" fill="#e03131"/>
-  <rect x="0" y="5" width="32" height="4" fill="#e03131"/>
+  <rect width="32" height="9" fill="#e03131"/>
   <text x="16" y="8.5" font-family="system-ui,sans-serif" font-size="6" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${month}</text>
   <text x="16" y="22" font-family="system-ui,sans-serif" font-size="14" font-weight="700" fill="#1a1a1a" text-anchor="middle" dominant-baseline="middle">${day}</text>
 </svg>`;
@@ -40,10 +39,11 @@ export function useDynamicFavicon() {
 
     update();
 
+    const msToMidnight = msUntilMidnight();
     let timer = setTimeout(function tick() {
       update();
       timer = setTimeout(tick, msUntilMidnight());
-    }, msUntilMidnight());
+    }, msToMidnight);
 
     return () => clearTimeout(timer);
   }, []);
