@@ -53,6 +53,11 @@ export function getNextOccurrence(anchorDateStr, recurrence) {
       m += 1;
       if (m > 12) { m = 1; y += 1; }
     }
+    // If d doesn't exist in target month (e.g. day 31 in June), advance month
+    while (new Date(y, m - 1, d).getMonth() !== m - 1) {
+      m += 1;
+      if (m > 12) { m = 1; y += 1; }
+    }
     return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   }
 
