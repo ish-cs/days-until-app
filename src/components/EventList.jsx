@@ -3,7 +3,7 @@ import {
   collection, onSnapshot, doc, deleteDoc, updateDoc, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
-import { calculateDaysLeft } from '../utils/dates.js';
+import { calculateDaysLeft, getEffectiveDate } from '../utils/dates.js';
 import EventItem from './EventItem.jsx';
 
 export default function EventList({
@@ -41,7 +41,7 @@ export default function EventList({
         const batch = writeBatch(db);
         const kept = [];
         docs.forEach(event => {
-          if (calculateDaysLeft(event.date) < 0) {
+          if (calculateDaysLeft(event.date) < 0 && !event.recurrence) {
             batch.delete(doc(db, 'users', uid, 'events', event.id));
           } else {
             kept.push(event);
@@ -51,7 +51,7 @@ export default function EventList({
         docs = kept;
       }
 
-      docs.sort((a, b) => calculateDaysLeft(a.date) - calculateDaysLeft(b.date));
+      docs.sort((a, b) => calculateDaysLeft(getEffectiveDate(a)) - calculateDaysLeft(getEffectiveDate(b)));
       setEvents(docs);
       if (onEventsChange) onEventsChange(docs);
     });
