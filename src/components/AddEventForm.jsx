@@ -13,6 +13,7 @@ export default function AddEventForm({
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [selectedColor, setSelectedColor] = useState('yellow-300');
+  const [recurrence, setRecurrence] = useState('');
   const cooldownRef = useRef(false);
 
   const isQuickAdd = Boolean(settings?.quickAddMode);
@@ -36,10 +37,11 @@ export default function AddEventForm({
         showToast('Please add a name and date.');
         return;
       }
-      await saveEvent(name.trim(), date, time, selectedColor);
+      await saveEvent(name.trim(), date, time, selectedColor, recurrence);
       setName('');
       setDate('');
       setTime('');
+      setRecurrence('');
     }
   }
 
@@ -79,15 +81,11 @@ export default function AddEventForm({
     }
   }
 
-  async function saveEvent(eventName, eventDate, eventTime, bgColor) {
+  async function saveEvent(eventName, eventDate, eventTime, bgColor, eventRecurrence) {
     if (!uid) return;
-    await addDoc(collection(db, 'users', uid, 'events'), {
-      name: eventName,
-      date: eventDate,
-      time: eventTime,
-      bgColor,
-      owner: uid
-    });
+    const payload = { name: eventName, date: eventDate, time: eventTime, bgColor, owner: uid };
+    if (eventRecurrence) payload.recurrence = eventRecurrence;
+    await addDoc(collection(db, 'users', uid, 'events'), payload);
     showToast('Event added!', 'success');
   }
 
@@ -125,6 +123,17 @@ export default function AddEventForm({
                   />
                 ))}
               </div>
+              <select
+                className="input composer-input-recurrence"
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value)}
+                aria-label="Recurrence"
+              >
+                <option value="">Does not repeat</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
             </div>
           )}
 

@@ -875,5 +875,16 @@ button.cal-cell:focus-visible {
   vertical-align: middle;
 }
 
+.composer-input-recurrence {
+  font-size: 12px;
+  padding: 4px 8px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
 /* Tailwind reset compat */
 *, *::before, *::after { box-sizing: border-box; }
