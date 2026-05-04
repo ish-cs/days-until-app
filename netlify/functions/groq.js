@@ -53,6 +53,7 @@ Extract:
 1) Event title/name — short, human (strip leading filler like "remind me to").
 2) time as HH:MM 24-hour if explicitly stated; else "".
 3) color: yellow-300 | red-300 | green-300 | blue-300 | purple-300 | pink-300 | orange-300 | teal-300 | gray-300 | white (default yellow-300).
+4) recurrence: "weekly" if phrase implies every week (e.g. "every Friday", "every week", "weekly"); "monthly" if every month; "yearly" if every year or annually; null otherwise.
 
 If no usable title: name null.
 
@@ -63,7 +64,7 @@ User phrase:
 "${userInput}"
 
 Return ONLY JSON:
-{ "name": "string or null", "time": "HH:MM or empty string", "color": "tailwind token" }`;
+{ "name": "string or null", "time": "HH:MM or empty string", "color": "tailwind token", "recurrence": "weekly"|"monthly"|"yearly"|null }`;
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
@@ -87,11 +88,15 @@ Return ONLY JSON:
     const resolvedColor =
       ALLOWED_COLORS.has(llmColor) ? llmColor : hintColor || "yellow-300";
 
+    const ALLOWED_RECURRENCES = new Set(['weekly', 'monthly', 'yearly']);
+    const llmRecurrence = ALLOWED_RECURRENCES.has(parsed.recurrence) ? parsed.recurrence : null;
+
     const merged = {
       name: name || null,
       date: structured.date ?? null,
       time: structured.time || llmTime || "",
       color: resolvedColor,
+      recurrence: llmRecurrence,
     };
 
     return {
