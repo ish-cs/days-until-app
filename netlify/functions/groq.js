@@ -8,6 +8,8 @@ const ALLOWED_COLORS = new Set([
   "pink-300", "orange-300", "teal-300", "gray-300", "white",
 ]);
 
+const ALLOWED_RECURRENCES = new Set(['weekly', 'monthly', 'yearly']);
+
 /** First dash segment "red - …" → tailwind key when user names a color plainly */
 const LEADING_COLOR_HINT = {
   yellow: "yellow-300",
@@ -88,7 +90,6 @@ Return ONLY JSON:
     const resolvedColor =
       ALLOWED_COLORS.has(llmColor) ? llmColor : hintColor || "yellow-300";
 
-    const ALLOWED_RECURRENCES = new Set(['weekly', 'monthly', 'yearly']);
     const llmRecurrence = ALLOWED_RECURRENCES.has(parsed.recurrence) ? parsed.recurrence : null;
 
     const merged = {
