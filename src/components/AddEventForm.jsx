@@ -74,7 +74,8 @@ export default function AddEventForm({
       if (!data.name || !data.date) throw new Error('Could not understand. Try a clearer event and date.');
 
       const eventColor = data.color || selectedColor;
-      await saveEvent(data.name, data.date, data.time || '', eventColor);
+      const eventRecurrence = data.recurrence || '';
+      await saveEvent(data.name, data.date, data.time || '', eventColor, eventRecurrence);
       setName('');
     } catch (err) {
       showToast(err?.message || 'Could not understand. Try a clearer event and date.');
