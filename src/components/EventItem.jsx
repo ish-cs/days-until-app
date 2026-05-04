@@ -24,7 +24,7 @@ export default function EventItem({
   const accentHex = ACCENT_COLORS[bgColor] || ACCENT_COLORS['yellow-300'];
 
   const dateDisplay = showDayOfWeek
-    ? `${getDayOfWeek(event.date)}, ${fullDate}`
+    ? `${getDayOfWeek(effectiveDate)}, ${fullDate}`
     : fullDate;
 
   function formatTime(t) {
