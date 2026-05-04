@@ -884,6 +884,8 @@ button.cal-cell:focus-visible {
   background: var(--glass-bg);
   color: var(--ink-1);
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* Tailwind reset compat */
