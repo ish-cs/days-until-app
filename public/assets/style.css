@@ -865,5 +865,15 @@ button.cal-cell:focus-visible {
   }
 }
 
+/* Recurrence badge */
+.recurrence-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.6;
+  vertical-align: middle;
+}
+
 /* Tailwind reset compat */
 *, *::before, *::after { box-sizing: border-box; }

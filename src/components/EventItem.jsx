@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
-import { calculateDaysLeft, formatFullDate, getDayOfWeek } from '../utils/dates.js';
+import { calculateDaysLeft, formatFullDate, getDayOfWeek, getEffectiveDate } from '../utils/dates.js';
 import { ACCENT_COLORS, COLOR_NAMES } from '../utils/colors.js';
 
 export default function EventItem({
@@ -17,8 +17,9 @@ export default function EventItem({
   const inputRef = useRef(null);
   const colorMenuRef = useRef(null);
 
-  const days = calculateDaysLeft(event.date);
-  const fullDate = formatFullDate(event.date);
+  const effectiveDate = getEffectiveDate(event);
+  const days = calculateDaysLeft(effectiveDate);
+  const fullDate = formatFullDate(effectiveDate);
   const bgColor = event.bgColor || 'yellow-300';
   const accentHex = ACCENT_COLORS[bgColor] || ACCENT_COLORS['yellow-300'];
 
@@ -179,6 +180,11 @@ export default function EventItem({
               title="Click to edit name"
             >
               {event.name}
+              {event.recurrence && (
+                <span className="recurrence-badge">
+                  ↻ {event.recurrence.charAt(0).toUpperCase() + event.recurrence.slice(1)}
+                </span>
+              )}
             </div>
           )}
           {editingField === 'date' ? (
