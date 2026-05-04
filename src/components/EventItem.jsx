@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
-import { calculateDaysLeft, formatFullDate, getDayOfWeek, getEffectiveDate } from '../utils/dates.js';
+import { calculateDaysLeft, formatFullDate, getDayOfWeek, getEffectiveDate, formatRecurrenceLabel } from '../utils/dates.js';
 import { ACCENT_COLORS, COLOR_NAMES } from '../utils/colors.js';
 
 export default function EventItem({
@@ -182,7 +182,7 @@ export default function EventItem({
               {event.name}
               {event.recurrence && (
                 <span className="recurrence-badge">
-                  ↻ {event.recurrence.charAt(0).toUpperCase() + event.recurrence.slice(1)}
+                  ↻ {formatRecurrenceLabel(event.date, event.recurrence)}
                 </span>
               )}
             </div>

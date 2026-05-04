@@ -80,3 +80,24 @@ export function getEffectiveDate(event) {
     ? getNextOccurrence(event.date, event.recurrence)
     : event.date;
 }
+
+export function formatRecurrenceLabel(anchorDateStr, recurrence) {
+  const date = parseDateLocal(anchorDateStr);
+  if (recurrence === 'weekly') {
+    const day = date.toLocaleDateString('en-GB', { weekday: 'long' });
+    return `Every ${day}`;
+  }
+  if (recurrence === 'monthly') {
+    const d = date.getDate();
+    const suffix = d === 1 || d === 21 || d === 31 ? 'st'
+      : d === 2 || d === 22 ? 'nd'
+      : d === 3 || d === 23 ? 'rd'
+      : 'th';
+    return `Every month on the ${d}${suffix}`;
+  }
+  if (recurrence === 'yearly') {
+    const label = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+    return `Every year on ${label}`;
+  }
+  return '';
+}
