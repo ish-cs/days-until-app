@@ -9,8 +9,10 @@ import SettingsMenu from './components/SettingsMenu.jsx';
 import Toast from './components/Toast.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
 import { useSettings } from './hooks/useSettings.js';
+import { useDynamicFavicon } from './hooks/useDynamicFavicon.js';
 
 export default function App() {
+  useDynamicFavicon();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
