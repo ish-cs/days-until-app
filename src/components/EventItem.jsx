@@ -14,6 +14,7 @@ export default function EventItem({
 }) {
   const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const inputRef = useRef(null);
   const colorMenuRef = useRef(null);
 
@@ -39,11 +40,16 @@ export default function EventItem({
   function startEdit(field, value) {
     setEditingField(field);
     setEditValue(value);
+    if (field === 'notes') setNotesExpanded(true);
   }
 
   useEffect(() => {
     if (editingField && inputRef.current) {
       inputRef.current.focus();
+      if (editingField === 'notes') {
+        const el = inputRef.current;
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
     }
   }, [editingField]);
 
@@ -67,11 +73,18 @@ export default function EventItem({
   }, [colorPicker, onCloseColorPicker]);
 
   async function commitEdit() {
-    const newValue = editValue.trim();
-    if (newValue && newValue !== (editingField === 'name' ? event.name : event.date)) {
+    const field = editingField;
+    const newValue = field === 'notes' ? editValue : editValue.trim();
+
+    // For time, allow empty string (clears the field). For notes, always save.
+    const shouldSave = field === 'time' || field === 'notes'
+      ? newValue !== (event[field] ?? '')
+      : newValue && newValue !== (field === 'name' ? event.name : event.date);
+
+    if (shouldSave) {
       try {
         await updateDoc(doc(db, 'users', uid, 'events', event.id), {
-          [editingField]: newValue
+          [field]: newValue
         });
         showToast('Event updated successfully!', 'success');
       } catch {
@@ -79,11 +92,21 @@ export default function EventItem({
       }
     }
     setEditingField(null);
+    if (field === 'notes' && !newValue) setNotesExpanded(false);
   }
 
   function handleKeyDown(e) {
     if (e.key === 'Enter') commitEdit();
     else if (e.key === 'Escape') setEditingField(null);
+  }
+
+  function handleNotesKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      commitEdit();
+    } else if (e.key === 'Escape') {
+      setEditingField(null);
+    }
   }
 
   function clampMenuPosition(x, y) {
@@ -187,6 +210,7 @@ export default function EventItem({
               )}
             </div>
           )}
+
           {editingField === 'date' ? (
             <input
               ref={inputRef}
@@ -197,13 +221,95 @@ export default function EventItem({
               onKeyDown={handleKeyDown}
               className="input event-inline-date"
             />
+          ) : editingField === 'time' ? (
+            <input
+              ref={inputRef}
+              type="time"
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={handleKeyDown}
+              className="input event-inline-date"
+            />
+          ) : (
+            <div className="event-date-line">
+              <span
+                onClick={() => startEdit('date', event.date)}
+                title="Click to edit date"
+                style={{ cursor: 'pointer' }}
+              >
+                {dateDisplay}
+              </span>
+              {event.time ? (
+                <span
+                  onClick={() => startEdit('time', event.time)}
+                  title="Click to edit time"
+                  style={{ cursor: 'pointer' }}
+                >
+                  {' · '}{formatTime(event.time)}
+                </span>
+              ) : (
+                <span
+                  className="add-time-hint"
+                  onClick={() => startEdit('time', '')}
+                  title="Click to add time"
+                >
+                  {' + time'}
+                </span>
+              )}
+            </div>
+          )}
+
+          {editingField === 'notes' ? (
+            <textarea
+              ref={inputRef}
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={handleNotesKeyDown}
+              className="input event-notes-textarea"
+              rows={3}
+              style={{ resize: 'none', marginTop: '4px', width: '100%', fontSize: '12px' }}
+              placeholder="Add a note…"
+            />
+          ) : event.notes ? (
+            <div
+              className={'event-notes' + (notesExpanded ? ' expanded' : '')}
+              onClick={() => {
+                if (notesExpanded) {
+                  startEdit('notes', event.notes);
+                } else {
+                  setNotesExpanded(true);
+                }
+              }}
+              title={notesExpanded ? 'Click to edit note' : 'Click to expand'}
+              style={{
+                marginTop: '4px',
+                fontSize: '12px',
+                color: 'var(--ink-2)',
+                cursor: 'pointer',
+                overflow: 'hidden',
+                whiteSpace: notesExpanded ? 'pre-wrap' : 'nowrap',
+                textOverflow: notesExpanded ? 'unset' : 'ellipsis',
+                lineHeight: '1.4',
+              }}
+            >
+              {event.notes}
+            </div>
           ) : (
             <div
-              className="event-date-line"
-              onClick={() => startEdit('date', event.date)}
-              title="Click to edit date"
+              className="add-note-hint"
+              onClick={() => startEdit('notes', '')}
+              title="Add a note"
+              style={{
+                marginTop: '4px',
+                fontSize: '12px',
+                color: 'var(--ink-3)',
+                cursor: 'pointer',
+                opacity: 0,
+              }}
             >
-              {dateDisplay}{event.time && ` · ${formatTime(event.time)}`}
+              + add note
             </div>
           )}
         </div>

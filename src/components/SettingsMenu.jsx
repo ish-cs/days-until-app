@@ -80,6 +80,7 @@ export default function SettingsMenu({
       const lines = text.split(/\r?\n/);
       const events = [];
       let current = {};
+      let totalParsed = 0;
 
       for (const line of lines) {
         if (line.startsWith('BEGIN:VEVENT')) {
@@ -90,10 +91,14 @@ export default function SettingsMenu({
           const raw = line.split(':')[1].trim();
           current.date = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
         } else if (line.startsWith('END:VEVENT') && current.name && current.date) {
-          const eventDate = new Date(current.date);
+          totalParsed++;
+          const [ey, em, ed] = current.date.split('-').map(Number);
+          const eventDate = new Date(ey, em - 1, ed);
           const today = new Date();
+          today.setHours(0, 0, 0, 0);
           const yearAhead = new Date();
           yearAhead.setFullYear(today.getFullYear() + 1);
+          yearAhead.setHours(23, 59, 59, 999);
           if (eventDate >= today && eventDate <= yearAhead) {
             events.push({ ...current });
           }
@@ -113,7 +118,20 @@ export default function SettingsMenu({
         });
       });
       await batch.commit();
-      showToast(`Imported ${events.length} calendar events.`, 'success');
+
+      const skipped = totalParsed - events.length;
+      let toastMsg, toastType;
+      if (events.length === 0 && totalParsed > 0) {
+        toastMsg = `No events imported — all ${totalParsed} events were outside the 1-year lookahead window.`;
+        toastType = 'error';
+      } else if (skipped > 0) {
+        toastMsg = `Imported ${events.length} of ${totalParsed} calendar events. ${skipped} were outside the 1-year window and skipped.`;
+        toastType = 'success';
+      } else {
+        toastMsg = `Imported ${events.length} calendar events.`;
+        toastType = 'success';
+      }
+      showToast(toastMsg, toastType);
     } catch {
       showToast('Invalid ICS file or import failed.');
     }

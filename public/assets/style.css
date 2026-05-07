@@ -622,6 +622,28 @@ button.cal-cell:focus-visible {
   background: rgba(255, 255, 255, 0.05);
   outline: none;
 }
+.event-card .add-time-hint {
+  opacity: 0;
+  transition: opacity 120ms ease;
+  cursor: pointer;
+  color: var(--ink-3);
+}
+.event-card:hover .add-time-hint {
+  opacity: 1;
+}
+.event-card .add-note-hint {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.event-card:hover .add-note-hint {
+  opacity: 1;
+}
+.event-card .event-notes-textarea {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-1);
+  border-radius: 4px;
+}
 .event-card:hover {
   background: var(--glass-bg-strong);
   transform: translateY(-1px);
