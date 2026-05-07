@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+// @ts-ignore
+import { defineConfig as defineVitestConfig } from 'vitest/config';
 
 /** Local Netlify Functions server (see npm run dev). */
 const FUNCTIONS_PROXY_TARGET =
@@ -12,6 +14,11 @@ const coopHeaders = {
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test-setup.js'],
+  },
   build: {
     outDir: 'dist',
   },
