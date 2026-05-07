@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daysuntil-cache-v7';
+const CACHE_NAME = 'daysuntil-cache-v8';
 
 /** Static assets only — never precache HTML. */
 const urlsToCache = [
@@ -56,7 +56,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (path.includes('/assets/') && path.endsWith('.js')) {
+  if (path.includes('/assets/') && (path.endsWith('.js') || path.endsWith('.css'))) {
     event.respondWith(fetch(req, { cache: 'no-store' }));
     return;
   }
