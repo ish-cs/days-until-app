@@ -163,32 +163,36 @@ export default function EventList({
   }
 
   function renderEventRow(event) {
+    const isSelected = selected.has(event.id);
     return (
-      <div key={event.id} style={{ position: 'relative' }}>
-        {bulkMode && (
-          <input
-            type="checkbox"
-            checked={selected.has(event.id)}
-            onChange={() => toggleSelect(event.id)}
-            style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, width: 18, height: 18, cursor: 'pointer' }}
-          />
-        )}
+      <div
+        key={event.id}
+        onClick={bulkMode ? () => toggleSelect(event.id) : undefined}
+        style={bulkMode ? {
+          cursor: 'pointer',
+          borderRadius: 18,
+          outline: isSelected ? '2px solid rgba(255,255,255,0.5)' : '2px solid transparent',
+          outlineOffset: 2,
+          opacity: isSelected ? 1 : 0.6,
+          transition: 'outline 120ms ease, opacity 120ms ease',
+        } : undefined}
+      >
         <EventItem
           id={`event-row-${event.id}`}
           event={event}
           uid={uid}
           showDayOfWeek={settings.showDayOfWeekMode}
-          onDelete={handleDelete}
+          onDelete={bulkMode ? () => {} : handleDelete}
           onColorChange={handleColorSelect}
           showToast={showToast}
-          highlighted={calendarHighlightDate != null && event.date === calendarHighlightDate}
-          colorPicker={
+          highlighted={!bulkMode && calendarHighlightDate != null && event.date === calendarHighlightDate}
+          colorPicker={bulkMode ? null : (
             colorMenu?.eventId === event.id
               ? { x: colorMenu.x, y: colorMenu.y }
               : null
-          }
-          onOpenColorPicker={(pid, x, y) => setColorMenu({ eventId: pid, x, y })}
-          onCloseColorPicker={closeColorPicker}
+          )}
+          onOpenColorPicker={bulkMode ? undefined : (pid, x, y) => setColorMenu({ eventId: pid, x, y })}
+          onCloseColorPicker={bulkMode ? undefined : closeColorPicker}
         />
       </div>
     );
