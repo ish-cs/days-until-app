@@ -55,7 +55,12 @@ Extract:
 1) Event title/name — short, human (strip leading filler like "remind me to").
 2) time as HH:MM 24-hour if explicitly stated; else "".
 3) color: yellow-300 | red-300 | green-300 | blue-300 | purple-300 | pink-300 | orange-300 | teal-300 | gray-300 | white (default yellow-300).
-4) recurrence: "weekly" if phrase implies every week (e.g. "every Friday", "every week", "weekly"); "monthly" if every month; "yearly" if every year or annually; null otherwise.
+4) recurrence: ONLY set if the user explicitly means a repeating event.
+   - "weekly" ONLY for: "every Friday", "every week", "weekly", "each Monday", "every other week"
+   - "monthly" ONLY for: "every month", "monthly", "each month", "first of every month"
+   - "yearly" ONLY for: "every year", "annually", "every January", "yearly"
+   - null for ALL one-time date phrases: "next Friday", "this Tuesday", "tomorrow", "next week", "in 3 days", "on the 15th", "next month" — these are specific dates, NOT recurrences.
+   - When in doubt: null. Prefer null over a wrong recurrence.
 
 If no usable title: name null.
 
