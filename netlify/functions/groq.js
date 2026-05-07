@@ -43,7 +43,12 @@ export async function handler(event) {
   try {
     const body = JSON.parse(event.body);
     const userInput = body.text ?? "";
-    const context = Array.isArray(body.context) ? body.context : [];
+    const rawContext = Array.isArray(body.context) ? body.context : [];
+    const context = rawContext.slice(0, 20).map(e => ({
+      name: String(e.name ?? '').replace(/[\r\n]/g, ' ').slice(0, 100),
+      date: String(e.date ?? '').slice(0, 20),
+      time: String(e.time ?? '').slice(0, 10),
+    }));
     const today = body.today;
 
     const structured = extractStructuredDateTime(userInput, today);
@@ -117,7 +122,7 @@ Return ONLY JSON:
       : "AI failed. Please try again.";
     return {
       statusCode: status,
-      body: JSON.stringify({ error: friendly, detail: err.message }),
+      body: JSON.stringify({ error: friendly }),
     };
   }
 }
