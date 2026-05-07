@@ -65,5 +65,4 @@ describe('AddEventForm', () => {
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('name'));
   });
 
-  it.todo('pending event preview disappears on cancel — requires fetch mock returning parsed result');
 });
