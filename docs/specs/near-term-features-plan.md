@@ -11,6 +11,7 @@
 | 8. Event Notes (core) | **DONE** — `AddEventForm.jsx:138-147` (form), `EventItem.jsx:263-314` (card) |
 | 9. Search (name only) | **DONE** — name search + color filter chips implemented |
 | 1. Quick Add Recurrence Preview | **DONE** — `src/utils/recurrencePreview.js`, `AddEventForm.jsx` |
+| Composer Tab autocomplete | **DONE** — `wordfreq-en-25000` trie + `persona-boost.json` + history (ranked merge) + weekday + trailing keyword→color heuristics + partial palette + `groq` `action: complete`; `getComposerSuggestion` / `__perfRunSuggestions`; `composerAutocomplete.js`, `AddEventForm.jsx` |
 | 2. ICS Import Warning | **DONE** |
 | 6. Timezone Handling | **DONE** |
 

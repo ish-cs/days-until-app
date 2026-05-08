@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('../firebase.js', () => ({
@@ -36,8 +36,19 @@ const defaultProps = {
   onComposerPrefillConsumed: vi.fn(),
 };
 
+function stubGroqFetch() {
+  global.fetch.mockImplementation(async (_url, options) => {
+    const body = JSON.parse(options.body);
+    if (body.action === 'complete') {
+      return { ok: true, json: async () => ({ suffix: '' }) };
+    }
+    return { ok: true, json: async () => ({ name: 'Dentist', date: '2026-05-10' }) };
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  stubGroqFetch();
 });
 
 describe('AddEventForm', () => {
@@ -67,14 +78,32 @@ describe('AddEventForm', () => {
   });
 
   it('submit with text calls groq endpoint', async () => {
-    global.fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ name: 'Dentist', date: '2026-05-10' }),
-    });
     const user = userEvent.setup();
     render(<AddEventForm {...defaultProps} />);
     await user.type(screen.getByRole('textbox'), 'Dentist next Tuesday');
     await user.click(screen.getByRole('button', { name: /Add/i }));
-    expect(global.fetch).toHaveBeenCalledWith('/.netlify/functions/groq', expect.any(Object));
+    const groqCalls = global.fetch.mock.calls.filter((c) => {
+      try {
+        const b = JSON.parse(c[1]?.body);
+        return b.action !== 'complete';
+      } catch {
+        return true;
+      }
+    });
+    expect(groqCalls.length).toBeGreaterThanOrEqual(1);
+    expect(groqCalls.some(([url]) => url.includes('groq'))).toBe(true);
+  });
+
+  it('Tab accepts local wordfreq suggestion', async () => {
+    const user = userEvent.setup();
+    render(<AddEventForm {...defaultProps} />);
+    const input = screen.getByRole('textbox');
+    await user.type(input, 'tom');
+    await waitFor(() => {
+      const g = document.querySelector('.composer-input-mirror-ghost');
+      expect(g?.textContent).toBe('orrow');
+    }, { timeout: 5000 });
+    await user.keyboard('{Tab}');
+    expect(input).toHaveValue('tomorrow');
   });
 });

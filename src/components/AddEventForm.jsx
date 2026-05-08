@@ -1,9 +1,26 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { detectRecurrencePreview } from '../utils/recurrencePreview.js';
 import { usePlaceholder } from '../hooks/usePlaceholder.js';
+import {
+  createAutocompleteEngine,
+  getHistorySuggestion,
+  buildHistoryBoost,
+} from '../utils/composerAutocomplete.js';
+
 const QUICK_ADD_COOLDOWN_MS = 4000;
+const COMPLETE_DEBOUNCE_MS = 300;
+
+function cleanRemoteSuffix(suffix, text) {
+  if (typeof suffix !== 'string') return '';
+  if (/[\r\n]/.test(suffix)) return '';
+  const s = suffix.trim();
+  if (s.length > 48) return '';
+  if (s.length > text.length + 20) return '';
+  if (s && text.toLowerCase().endsWith(s.toLowerCase())) return '';
+  return s;
+}
 
 export default function AddEventForm({
   uid, settings, showToast, events = [],
@@ -13,8 +30,89 @@ export default function AddEventForm({
 }) {
   const [name, setName] = useState('');
   const [recurrencePreview, setRecurrencePreview] = useState(null);
+  const [remoteSuffix, setRemoteSuffix] = useState('');
+  const [engine, setEngine] = useState(null);
   const cooldownRef = useRef(false);
+  const completeTimerRef = useRef(null);
+  const completeAbortRef = useRef(null);
+  const completeSeqRef = useRef(0);
+  const inputRef = useRef(null);
+  const mirrorRef = useRef(null);
   const placeholder = usePlaceholder(uid, events);
+
+  const historyMap = useMemo(
+    () => buildHistoryBoost(events.map((e) => e.name).filter(Boolean)),
+    [events]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    createAutocompleteEngine().then((e) => {
+      if (!cancelled) setEngine(e);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const localSuggestion = useMemo(() => {
+    if (!engine || !name || name.endsWith(' ')) return null;
+    return getHistorySuggestion(name, engine, historyMap);
+  }, [engine, name, historyMap]);
+
+  const displaySuffix = (localSuggestion?.suffix ?? '') || remoteSuffix;
+
+  useEffect(() => {
+    setRemoteSuffix('');
+    if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+    if (completeAbortRef.current) {
+      completeAbortRef.current.abort();
+      completeAbortRef.current = null;
+    }
+
+    if (localSuggestion || !name.trim() || name.length < 2) return undefined;
+
+    const seq = ++completeSeqRef.current;
+    completeTimerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      completeAbortRef.current = controller;
+      try {
+        const res = await fetch('/.netlify/functions/groq', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'complete',
+            text: name,
+            today: new Date().toLocaleDateString('en-CA'),
+          }),
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (seq !== completeSeqRef.current) return;
+        const s = cleanRemoteSuffix(data?.suffix ?? '', name);
+        if (s) setRemoteSuffix(s);
+      } catch {
+        if (seq === completeSeqRef.current) setRemoteSuffix('');
+      }
+    }, COMPLETE_DEBOUNCE_MS);
+
+    return () => {
+      if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+    };
+  }, [name, localSuggestion]);
+
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    const mirror = mirrorRef.current;
+    if (!el || !mirror) return;
+    mirror.scrollLeft = el.scrollLeft;
+  }, [name, displaySuffix]);
+
+  useEffect(() => {
+    return () => {
+      if (completeAbortRef.current) completeAbortRef.current.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!composerPrefillDate) return;
@@ -24,6 +122,12 @@ export default function AddEventForm({
   useEffect(() => {
     if (prefillName != null) setName(prefillName);
   }, [prefillName]);
+
+  const applyCompletion = useCallback(() => {
+    if (!displaySuffix) return;
+    setName((n) => n + displaySuffix);
+    setRemoteSuffix('');
+  }, [displaySuffix]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -61,6 +165,7 @@ export default function AddEventForm({
       await saveEvent(data.name, data.date, data.time || '', data.color || 'yellow-300', data.recurrence || null);
       setName('');
       setRecurrencePreview(null);
+      setRemoteSuffix('');
     } catch (err) {
       showToast(err?.message || 'Could not understand. Try a clearer event and date.');
     }
@@ -82,17 +187,52 @@ export default function AddEventForm({
       <div className="composer-inner glass">
         <form className="composer-form" onSubmit={handleSubmit} autoComplete="off">
           <div className="composer-main">
-            <input
-              type="text"
-              className="input composer-field"
-              placeholder={placeholder}
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setRecurrencePreview(detectRecurrencePreview(e.target.value));
-              }}
-              aria-label="Describe event to add"
-            />
+            <div className="composer-field-wrap">
+              <div
+                ref={mirrorRef}
+                className="composer-input-mirror"
+                aria-hidden
+              >
+                {name}
+                {displaySuffix ? (
+                  <span className="composer-input-mirror-ghost">{displaySuffix}</span>
+                ) : null}
+              </div>
+              <input
+                ref={inputRef}
+                type="text"
+                className="input composer-field composer-field-autocomplete"
+                placeholder={placeholder}
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setRecurrencePreview(detectRecurrencePreview(e.target.value));
+                }}
+                onScroll={() => {
+                  if (mirrorRef.current && inputRef.current) {
+                    mirrorRef.current.scrollLeft = inputRef.current.scrollLeft;
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab' && displaySuffix) {
+                    e.preventDefault();
+                    applyCompletion();
+                  } else if (e.key === 'ArrowRight' && displaySuffix && inputRef.current) {
+                    const el = inputRef.current;
+                    if (el.selectionStart === el.selectionEnd && el.selectionEnd === name.length) {
+                      e.preventDefault();
+                      applyCompletion();
+                    }
+                  }
+                }}
+                aria-label="Describe event to add"
+                aria-autocomplete="list"
+                aria-describedby="composer-autocomplete-hint"
+              />
+            </div>
+            <span id="composer-autocomplete-hint" className="visually-hidden">
+              Dimmed suggestion may appear; press Tab to accept it.
+            </span>
             <button type="submit" className="btn composer-submit">
               {submitLabel}
             </button>

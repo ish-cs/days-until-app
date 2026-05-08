@@ -80,6 +80,56 @@ Return ONLY JSON: { "placeholder": "..." }`;
       return { statusCode: 200, body: JSON.stringify({ placeholder: text }) };
     }
 
+    if (body.action === 'complete') {
+      const rawText = typeof body.text === 'string' ? body.text : '';
+      const text = rawText.slice(0, 200);
+      const todayISO = typeof body.today === 'string' ? body.today.slice(0, 20) : '';
+
+      if (!text.trim()) {
+        return { statusCode: 200, body: JSON.stringify({ suffix: '' }) };
+      }
+
+      const prompt = `You are an autocomplete engine for a single-line calendar/countdown event input.
+${todayISO ? `Today is ${todayISO}.` : ''}
+The user is currently typing this text:
+"${text}"
+
+Your job: predict ONLY the characters that should be appended to the END of that text to naturally continue what they are typing.
+- If the last word is partial, complete that word first.
+- Otherwise, predict the next short token (a word, a date phrase, a time, etc.).
+- Keep the continuation SHORT (typically 1-20 characters, never more than 48).
+- Do NOT repeat any of the existing text.
+- Do NOT include leading whitespace if the user already ended with a space.
+- Add a single leading space ONLY if the user's text does not end with whitespace AND your suffix starts a new word.
+- No newlines. Single line only.
+- If you are unsure or have nothing useful to add, return an empty string.
+
+Return ONLY JSON: { "suffix": "..." }`;
+
+      const completion = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0,
+      });
+
+      let suffix = '';
+      try {
+        const parsedC = JSON.parse(completion.choices[0].message.content);
+        if (typeof parsedC.suffix === 'string') suffix = parsedC.suffix;
+      } catch {
+        suffix = '';
+      }
+
+      if (/[\r\n]/.test(suffix)) suffix = '';
+      suffix = suffix.trim();
+      if (suffix.length > 48) suffix = '';
+      if (suffix.length > text.length + 20) suffix = '';
+      if (suffix && text.toLowerCase().endsWith(suffix.toLowerCase())) suffix = '';
+
+      return { statusCode: 200, body: JSON.stringify({ suffix }) };
+    }
+
     const userInput = body.text ?? "";
     const rawContext = Array.isArray(body.context) ? body.context : [];
     const context = rawContext.slice(0, 20).map(e => ({
