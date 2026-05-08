@@ -120,6 +120,7 @@ export default function App() {
         uid={user.uid}
         settings={settings}
         showToast={showToast}
+        events={events}
         composerPrefillDate={composerPrefillDate}
         onComposerPrefillConsumed={handleComposerPrefillConsumed}
       />

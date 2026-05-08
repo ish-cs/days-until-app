@@ -42,6 +42,34 @@ function weekdayLongFromISO(iso) {
 export async function handler(event) {
   try {
     const body = JSON.parse(event.body);
+
+    if (body.action === 'placeholder') {
+      const rawContext = Array.isArray(body.context) ? body.context : [];
+      const context = rawContext.slice(0, 30).map(e =>
+        String(e.name ?? '').replace(/[\r\n]/g, ' ').slice(0, 80)
+      );
+      const prompt = `You help generate placeholder text for an event input box.
+Based on the user's existing events, infer their life context (student, professional, parent, etc).
+Generate ONE short realistic example event in natural language — something they might plausibly add.
+Do NOT use any of their existing events. Keep it under 8 words, conversational, with a time or day when natural.
+
+Existing events: ${context.length ? context.join(', ') : '(none yet)'}
+
+Return ONLY JSON: { "placeholder": "..." }`;
+
+      const completion = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+      });
+      const parsed = JSON.parse(completion.choices[0].message.content);
+      const text = typeof parsed.placeholder === 'string' && parsed.placeholder.trim()
+        ? parsed.placeholder.trim()
+        : 'Dentist next Tuesday 3pm';
+      return { statusCode: 200, body: JSON.stringify({ placeholder: text }) };
+    }
+
     const userInput = body.text ?? "";
     const rawContext = Array.isArray(body.context) ? body.context : [];
     const context = rawContext.slice(0, 20).map(e => ({

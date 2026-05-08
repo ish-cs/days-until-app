@@ -20,6 +20,10 @@ vi.mock('firebase/auth', () => ({
   signOut: vi.fn(),
 }));
 
+vi.mock('../hooks/usePlaceholder.js', () => ({
+  usePlaceholder: () => 'Add an event… e.g. Dentist next Tuesday 3pm',
+}));
+
 global.fetch = vi.fn();
 
 import AddEventForm from './AddEventForm.jsx';

@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { detectRecurrencePreview } from '../utils/recurrencePreview.js';
+import { usePlaceholder } from '../hooks/usePlaceholder.js';
 const QUICK_ADD_COOLDOWN_MS = 4000;
 
 export default function AddEventForm({
-  uid, settings, showToast,
+  uid, settings, showToast, events = [],
   composerPrefillDate = null, onComposerPrefillConsumed,
   prefillName = null, onEventAdded = null,
   submitLabel = 'Add'
@@ -13,6 +14,7 @@ export default function AddEventForm({
   const [name, setName] = useState('');
   const [recurrencePreview, setRecurrencePreview] = useState(null);
   const cooldownRef = useRef(false);
+  const placeholder = usePlaceholder(uid, events);
 
   useEffect(() => {
     if (!composerPrefillDate) return;
@@ -83,7 +85,7 @@ export default function AddEventForm({
             <input
               type="text"
               className="input composer-field"
-              placeholder="Add an event… e.g. Dentist next Tuesday 3pm"
+              placeholder={placeholder}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
