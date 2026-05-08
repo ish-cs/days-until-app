@@ -1,8 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import {
-  collection, getDocs, addDoc, writeBatch, doc
+  collection, getDocs, addDoc, writeBatch, doc, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
+import { parseIcs, detectDuplicates } from '../utils/icsParser.js';
+import NotificationSettings from './NotificationSettings.jsx';
+import { useCalendarFeed } from '../hooks/useCalendarFeed.js';
 
 export default function SettingsMenu({
   user, settings, updateSettings, uid,
@@ -11,6 +14,7 @@ export default function SettingsMenu({
 }) {
   const importFileRef = useRef(null);
   const calendarFileRef = useRef(null);
+  const { feedUrl, isGenerating, regenerate } = useCalendarFeed(uid);
 
   useEffect(() => {
     if (suppressEscapeClose) return undefined;
@@ -61,7 +65,9 @@ export default function SettingsMenu({
           date: event.date || new Date().toISOString().slice(0, 10),
           time: event.time || '',
           bgColor: event.bgColor || 'yellow-300',
-          owner: uid
+          owner: uid,
+          createdAt: serverTimestamp(),
+          timezone: ''
         });
       });
       await batch.commit();
@@ -77,61 +83,45 @@ export default function SettingsMenu({
     if (!file) return;
     try {
       const text = await file.text();
-      const lines = text.split(/\r?\n/);
-      const events = [];
-      let current = {};
-      let totalParsed = 0;
+      const { events, totalParsed } = parseIcs(text);
 
-      for (const line of lines) {
-        if (line.startsWith('BEGIN:VEVENT')) {
-          current = {};
-        } else if (line.startsWith('SUMMARY:')) {
-          current.name = line.slice(8).trim();
-        } else if (line.startsWith('DTSTART;VALUE=DATE:')) {
-          const raw = line.split(':')[1].trim();
-          current.date = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
-        } else if (line.startsWith('END:VEVENT') && current.name && current.date) {
-          totalParsed++;
-          const [ey, em, ed] = current.date.split('-').map(Number);
-          const eventDate = new Date(ey, em - 1, ed);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const yearAhead = new Date();
-          yearAhead.setFullYear(today.getFullYear() + 1);
-          yearAhead.setHours(23, 59, 59, 999);
-          if (eventDate >= today && eventDate <= yearAhead) {
-            events.push({ ...current });
-          }
-        }
-      }
+      const snapshot = await getDocs(collection(db, 'users', uid, 'events'));
+      const existing = snapshot.docs.map(d => d.data());
+      const duplicates = detectDuplicates(events, existing);
+      const fresh = events.filter(ev =>
+        !existing.some(ex => ex.name === ev.name && ex.date === ev.date)
+      );
 
-      const ref = collection(db, 'users', uid, 'events');
-      const batch = writeBatch(db);
-      events.forEach(event => {
-        const newDoc = doc(ref);
-        batch.set(newDoc, {
-          name: event.name,
-          date: event.date,
-          time: '',
-          bgColor: 'yellow-300',
-          owner: uid
+      async function importEvents(toImport) {
+        const ref = collection(db, 'users', uid, 'events');
+        const batch = writeBatch(db);
+        toImport.forEach(event => {
+          const newDoc = doc(ref);
+          batch.set(newDoc, { name: event.name, date: event.date, time: '', bgColor: 'yellow-300', owner: uid, createdAt: serverTimestamp(), timezone: '' });
         });
-      });
-      await batch.commit();
-
-      const skipped = totalParsed - events.length;
-      let toastMsg, toastType;
-      if (events.length === 0 && totalParsed > 0) {
-        toastMsg = `No events imported — all ${totalParsed} events were outside the 1-year lookahead window.`;
-        toastType = 'error';
-      } else if (skipped > 0) {
-        toastMsg = `Imported ${events.length} of ${totalParsed} calendar events. ${skipped} were outside the 1-year window and skipped.`;
-        toastType = 'success';
-      } else {
-        toastMsg = `Imported ${events.length} calendar events.`;
-        toastType = 'success';
+        await batch.commit();
+        const skipped = totalParsed - events.length;
+        let msg = `Imported ${toImport.length} calendar event${toImport.length !== 1 ? 's' : ''}.`;
+        if (skipped > 0) msg += ` ${skipped} outside 1-year window skipped.`;
+        showToast(msg, toImport.length > 0 ? 'success' : 'error');
       }
-      showToast(toastMsg, toastType);
+
+      if (events.length === 0 && totalParsed > 0) {
+        showToast(`No events imported — all ${totalParsed} were outside the 1-year window.`, 'error');
+        return;
+      }
+
+      if (duplicates.length > 0) {
+        showConfirm(
+          `${fresh.length} new event${fresh.length !== 1 ? 's' : ''} will be added. ` +
+          `${duplicates.length} already exist (same name + date).\n\nConfirm = import all.  Cancel = skip duplicates.`,
+          () => importEvents(events),
+          () => importEvents(fresh)
+        );
+        return;
+      }
+
+      await importEvents(events);
     } catch {
       showToast('Invalid ICS file or import failed.');
     }
@@ -195,6 +185,69 @@ export default function SettingsMenu({
             </label>
           ))}
         </div>
+
+        <div className="divider" />
+        <div className="settings-section-label">Notifications</div>
+        <NotificationSettings uid={uid} settings={settings} updateSettings={updateSettings} />
+
+        <div className="divider" />
+        <div className="settings-section-label">Default timezone</div>
+        <p className="settings-toggle-desc" style={{ margin: '0 0 8px' }}>
+          Used when adding events with a time. Detected automatically.
+        </p>
+        <input
+          type="text"
+          className="input"
+          value={settings.defaultTimezone || ''}
+          onChange={e => updateSettings({ defaultTimezone: e.target.value })}
+          placeholder="e.g. America/New_York"
+          style={{ marginBottom: 4, fontSize: 13 }}
+        />
+        <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: 0 }}>
+          IANA timezone name. Changes apply to new events only.
+        </p>
+
+        <div className="divider" />
+        <div className="settings-section-label">Calendar feed</div>
+        <p className="settings-toggle-desc" style={{ margin: '0 0 8px' }}>
+          Subscribe to your events in Google Calendar or Apple Calendar.
+        </p>
+        {feedUrl ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="text"
+                className="input"
+                readOnly
+                value={feedUrl}
+                style={{ fontSize: 11, flex: 1 }}
+                onFocus={e => e.target.select()}
+              />
+              <button
+                type="button"
+                className="btn"
+                style={{ flexShrink: 0 }}
+                onClick={() => navigator.clipboard.writeText(feedUrl)}
+              >
+                Copy
+              </button>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ fontSize: 11, alignSelf: 'flex-start' }}
+              onClick={regenerate}
+              disabled={isGenerating}
+            >
+              Regenerate link
+            </button>
+            <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: 0 }}>
+              Sharing this URL gives read access to all your events.
+            </p>
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--ink-3)' }}>Generating…</p>
+        )}
 
         <div className="divider" />
 

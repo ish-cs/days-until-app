@@ -29,21 +29,50 @@ export function getDayOfWeek(dateStr) {
   return parseDateLocal(dateStr).toLocaleDateString('en-GB', { weekday: 'short' });
 }
 
-export function getNextOccurrence(anchorDateStr, recurrence) {
+export function getNextOccurrence(anchorDateStr, recurrence, { endDate = null, count = null } = {}) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const [ay, am, ad] = anchorDateStr.split('-').map(Number);
   let y = ay, m = am, d = ad;
+  const anchor = new Date(ay, am - 1, ad);
 
   function toDate(yr, mo, dy) {
     return new Date(yr, mo - 1, dy);
   }
 
+  function formatDate(yr, mo, dy) {
+    return `${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+  }
+
+  function checkEndConditions(candidateStr) {
+    if (endDate && candidateStr > endDate) return null;
+    if (count !== null) {
+      let occurrencesSoFar;
+      if (recurrence === 'weekly') {
+        occurrencesSoFar = Math.floor((today - anchor) / (7 * 86400000)) + 1;
+      } else {
+        occurrencesSoFar = 0;
+        let cy = ay, cm = am;
+        while (true) {
+          const candidate = recurrence === 'yearly'
+            ? toDate(cy, cm, ad)
+            : toDate(cy, cm, ad);
+          if (candidate > today) break;
+          occurrencesSoFar++;
+          if (recurrence === 'yearly') cy++;
+          else { cm++; if (cm > 12) { cm = 1; cy++; } }
+        }
+      }
+      if (occurrencesSoFar >= count) return null;
+    }
+    return candidateStr;
+  }
+
   if (recurrence === 'yearly') {
     y = today.getFullYear();
     if (toDate(y, m, d) < today) y += 1;
-    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return checkEndConditions(formatDate(y, m, d));
   }
 
   if (recurrence === 'monthly') {
@@ -58,28 +87,38 @@ export function getNextOccurrence(anchorDateStr, recurrence) {
       m += 1;
       if (m > 12) { m = 1; y += 1; }
     }
-    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return checkEndConditions(formatDate(y, m, d));
   }
 
   if (recurrence === 'weekly') {
-    const anchor = new Date(ay, am - 1, ad);
     const diffDays = Math.ceil((today - anchor) / (1000 * 60 * 60 * 24));
     const weeksAhead = diffDays > 0 ? Math.ceil(diffDays / 7) : 0;
     const next = new Date(ay, am - 1, ad + weeksAhead * 7);
-    const ny = next.getFullYear();
-    const nm = String(next.getMonth() + 1).padStart(2, '0');
-    const nd = String(next.getDate()).padStart(2, '0');
-    return `${ny}-${nm}-${nd}`;
+    return checkEndConditions(formatDate(next.getFullYear(), next.getMonth() + 1, next.getDate()));
   }
 
   return anchorDateStr;
 }
 
 export function getEffectiveDate(event) {
-  return event.recurrence
-    ? getNextOccurrence(event.date, event.recurrence)
-    : event.date;
+  if (!event.recurrence) return event.date;
+  const result = getNextOccurrence(event.date, event.recurrence, {
+    endDate: event.recurrenceEndDate ?? null,
+    count: event.recurrenceCount ?? null,
+  });
+  return result ?? (event.recurrenceEndDate ?? event.date);
 }
+
+// Returns days elapsed since dateStr (positive = past, negative = future)
+export function calculateDaysSince(dateStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const eventDate = new Date(y, m - 1, d);
+  return Math.floor((today - eventDate) / (1000 * 60 * 60 * 24));
+}
+
+export const COUNT_UP_MILESTONES = [30, 60, 90, 180, 365, 500, 730, 1000];
 
 export function formatRecurrenceLabel(anchorDateStr, recurrence) {
   const date = parseDateLocal(anchorDateStr);

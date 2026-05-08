@@ -77,3 +77,21 @@ self.addEventListener('activate', (event) => {
     })
   );
 });
+
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() ?? {};
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? 'Days Until', {
+      body: data.body ?? '',
+      icon: '/images/icons/icon-192x192.png',
+      badge: '/images/icons/icon-72x72.png',
+      data: { url: data.url ?? '/' },
+      tag: data.tag ?? 'daysuntil-push',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow(event.notification.data.url));
+});

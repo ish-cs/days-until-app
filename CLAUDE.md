@@ -17,6 +17,7 @@ You are a senior engineer in full autonomy mode. These rules override all defaul
 - Spawn parallel agents for independent tasks instead of working sequentially.
 - Use task tools to track multi-step work — mark in-progress when starting, completed when done.
 - Before claiming work is complete, verify with commands — evidence before assertions.
+- After completing any feature or task, update the relevant spec files in `docs/specs/` to mark items as done (e.g. check off `[ ]` → `[x]` in checklists). Keep plan files current so progress is always visible.
 - Read memory at session start. Write memory when learning anything about the user, project, or preferences.
 - Suggest `/compact` at 40% context or at any natural checkpoint.
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleProvider } from './firebase.js';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, googleProvider, db } from './firebase.js';
 import AuthScreen from './components/AuthScreen.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import EventList from './components/EventList.jsx';
@@ -8,6 +9,7 @@ import AddEventForm from './components/AddEventForm.jsx';
 import SettingsMenu from './components/SettingsMenu.jsx';
 import Toast from './components/Toast.jsx';
 import ConfirmModal from './components/ConfirmModal.jsx';
+import OnboardingFlow from './components/OnboardingFlow.jsx';
 import { useSettings } from './hooks/useSettings.js';
 import { useDynamicFavicon } from './hooks/useDynamicFavicon.js';
 
@@ -19,6 +21,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [events, setEvents] = useState([]);
+  const [onboardingComplete, setOnboardingComplete] = useState(null);
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(null);
   const [composerPrefillDate, setComposerPrefillDate] = useState(null);
   const [settings, updateSettings] = useSettings(user?.uid);
@@ -33,9 +36,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => {
+    const unsub = onAuthStateChanged(auth, async u => {
       setUser(u || null);
       setAuthLoading(false);
+      if (u) {
+        const ref = doc(db, 'users', u.uid);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          await setDoc(ref, { onboardingComplete: false, onboardingStep: 0, createdAt: serverTimestamp() });
+          setOnboardingComplete(false);
+        } else {
+          setOnboardingComplete(snap.data().onboardingComplete === true);
+        }
+      } else {
+        setOnboardingComplete(null);
+      }
     });
     return unsub;
   }, []);
@@ -74,6 +89,8 @@ export default function App() {
       </>
     );
   }
+
+  const showOnboarding = onboardingComplete === false && events.length < 5;
 
   return (
     <>
@@ -116,6 +133,15 @@ export default function App() {
           showToast={showToast}
           showConfirm={showConfirm}
           suppressEscapeClose={!!confirm}
+        />
+      )}
+      {showOnboarding && (
+        <OnboardingFlow
+          uid={user.uid}
+          user={user}
+          events={events}
+          showToast={showToast}
+          onComplete={() => setOnboardingComplete(true)}
         />
       )}
       {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}

@@ -6,6 +6,9 @@ const DEFAULT_SETTINGS = {
   quickAddMode: false,
   autoDeleteMode: false,
   showDayOfWeekMode: false,
+  notificationsEnabled: false,
+  notificationLeadDays: [7, 1, 0],
+  defaultTimezone: '',
 };
 
 export function useSettings(uid) {
@@ -13,9 +16,14 @@ export function useSettings(uid) {
 
   useEffect(() => {
     if (!uid) return;
-    getDoc(doc(db, 'users', uid)).then(snap => {
+    getDoc(doc(db, 'users', uid)).then(async snap => {
       if (snap.exists()) {
         setSettings({ ...DEFAULT_SETTINGS, ...snap.data() });
+      }
+      if (!snap.data()?.defaultTimezone) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        await setDoc(doc(db, 'users', uid), { defaultTimezone: tz }, { merge: true });
+        setSettings(prev => ({ ...prev, defaultTimezone: tz }));
       }
     });
   }, [uid]);

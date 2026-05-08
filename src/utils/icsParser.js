@@ -1,9 +1,3 @@
-/**
- * Parse ICS text and return { events, totalParsed, skipped }
- * events: array of { name, date } for events within [today, today+1year]
- * totalParsed: total VEVENT entries with name+date
- * skipped: totalParsed - events.length
- */
 export function parseIcs(icsText, today = new Date()) {
   const lines = icsText.split(/\r?\n/);
   const events = [];
@@ -21,9 +15,14 @@ export function parseIcs(icsText, today = new Date()) {
       current = {};
     } else if (line.startsWith('SUMMARY:')) {
       current.name = line.slice(8).trim();
-    } else if (line.startsWith('DTSTART;VALUE=DATE:')) {
-      const raw = line.split(':')[1].trim();
-      current.date = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+    } else if (!current.date) {
+      const dateOnly = line.match(/^DTSTART;VALUE=DATE:(\d{4})(\d{2})(\d{2})/);
+      const dateTime = line.match(/^DTSTART(?:;[^:]*)?:(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+      if (dateOnly) {
+        current.date = `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]}`;
+      } else if (dateTime) {
+        current.date = `${dateTime[1]}-${dateTime[2]}-${dateTime[3]}`;
+      }
     } else if (line.startsWith('END:VEVENT') && current.name && current.date) {
       totalParsed++;
       const [ey, em, ed] = current.date.split('-').map(Number);
@@ -35,4 +34,10 @@ export function parseIcs(icsText, today = new Date()) {
   }
 
   return { events, totalParsed, skipped: totalParsed - events.length };
+}
+
+export function detectDuplicates(incoming, existing) {
+  return incoming.filter(ev =>
+    existing.some(ex => ex.name === ev.name && ex.date === ev.date)
+  );
 }

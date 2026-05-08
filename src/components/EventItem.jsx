@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, updateDoc } from 'firebase/firestore';
+import { Download } from 'lucide-react';
 import { db } from '../firebase.js';
-import { calculateDaysLeft, formatFullDate, getDayOfWeek, getEffectiveDate, formatRecurrenceLabel } from '../utils/dates.js';
+import { calculateDaysLeft, calculateDaysSince, formatFullDate, getDayOfWeek, getEffectiveDate, formatRecurrenceLabel } from '../utils/dates.js';
 import { ACCENT_COLORS, COLOR_NAMES } from '../utils/colors.js';
+import { exportSingleEvent } from '../utils/icsExport.js';
 
 export default function EventItem({
   event, uid, showDayOfWeek, onDelete, onColorChange, showToast,
@@ -20,6 +22,8 @@ export default function EventItem({
 
   const effectiveDate = getEffectiveDate(event);
   const days = calculateDaysLeft(effectiveDate);
+  const isCountUp = event.isCountUp === true;
+  const daysSince = isCountUp ? calculateDaysSince(event.date) : null;
   const fullDate = formatFullDate(effectiveDate);
   const bgColor = event.bgColor || 'yellow-300';
   const accentHex = ACCENT_COLORS[bgColor] || ACCENT_COLORS['yellow-300'];
@@ -35,6 +39,27 @@ export default function EventItem({
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const h12 = hour % 12 === 0 ? 12 : hour % 12;
     return `${h12}:${m} ${ampm}`;
+  }
+
+  function getShortTz(ianaTimezone) {
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone: ianaTimezone, timeZoneName: 'short' })
+        .formatToParts(new Date())
+        .find(p => p.type === 'timeZoneName')?.value ?? ianaTimezone;
+    } catch {
+      return ianaTimezone;
+    }
+  }
+
+  function formatTimeWithTz(t, storedTz) {
+    if (!t) return '';
+    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const [h, m] = t.split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 === 0 ? 12 : hour % 12;
+    const suffix = storedTz && storedTz !== userTz ? ` (${getShortTz(storedTz)})` : '';
+    return `${h12}:${m} ${ampm}${suffix}`;
   }
 
   function startEdit(field, value) {
@@ -176,12 +201,21 @@ export default function EventItem({
         onContextMenu={handleCardContextMenu}
         title="Right-click to choose accent color"
       >
-        <div className={`num serif${days === 0 ? ' word-mode' : ''}`}>
-          <span className="digit-roll" key={days}>
-            {days === 0 ? 'Today' : Math.abs(days)}
+        <div className={`num serif${(isCountUp ? daysSince === 0 : days === 0) ? ' word-mode' : ''}`}>
+          <span className="digit-roll" key={isCountUp ? daysSince : days}>
+            {isCountUp
+              ? (daysSince === 0 ? 'Today' : Math.abs(daysSince))
+              : (days === 0 ? 'Today' : Math.abs(days))
+            }
           </span>
-          {days !== 0 && (
-            <span className="unit">{days < 0 ? 'ago' : 'days'}</span>
+          {isCountUp ? (
+            daysSince !== 0 && (
+              <span className="unit">{daysSince > 0 ? 'days since' : 'days until'}</span>
+            )
+          ) : (
+            days !== 0 && (
+              <span className="unit">{days < 0 ? 'ago' : 'days'}</span>
+            )
           )}
         </div>
 
@@ -207,6 +241,12 @@ export default function EventItem({
                 <span className="recurrence-badge">
                   ↻ {formatRecurrenceLabel(event.date, event.recurrence)}
                 </span>
+              )}
+              {event.recurrenceEndDate && (
+                <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>until {event.recurrenceEndDate}</span>
+              )}
+              {event.recurrenceCount && !event.recurrenceEndDate && (
+                <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>{event.recurrenceCount}x</span>
               )}
             </div>
           )}
@@ -246,7 +286,7 @@ export default function EventItem({
                   title="Click to edit time"
                   style={{ cursor: 'pointer' }}
                 >
-                  {' · '}{formatTime(event.time)}
+                  {' · '}{formatTimeWithTz(event.time, event.timezone)}
                 </span>
               ) : (
                 <span
@@ -271,6 +311,7 @@ export default function EventItem({
               rows={3}
               style={{ resize: 'none', marginTop: '4px', width: '100%', fontSize: '12px' }}
               placeholder="Add a note…"
+              maxLength={500}
             />
           ) : event.notes ? (
             <div
@@ -317,14 +358,22 @@ export default function EventItem({
         <div className="row-actions">
           <button
             className="icon-btn"
-            onClick={() => startEdit('name', event.name)}
+            onClick={(e) => { e.stopPropagation(); startEdit('name', event.name); }}
             title="Edit"
           >
             ✎
           </button>
           <button
+            type="button"
             className="icon-btn"
-            onClick={(e) => onDelete(event, e.shiftKey)}
+            title="Export to calendar"
+            onClick={(e) => { e.stopPropagation(); exportSingleEvent({ ...event, id: event.id }, uid); }}
+          >
+            <Download size={14} />
+          </button>
+          <button
+            className="icon-btn"
+            onClick={(e) => { e.stopPropagation(); onDelete(event, e.shiftKey); }}
             title="Delete (shift+click to skip confirm)"
             style={{ color: 'var(--ink-2)' }}
           >

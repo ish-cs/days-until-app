@@ -4,6 +4,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase.js';
 import { calculateDaysLeft, getEffectiveDate } from '../utils/dates.js';
+import { exportAllEvents } from '../utils/icsExport.js';
+import { sortEvents } from '../utils/sortFilter.js';
+import { ACCENT_COLORS, COLOR_NAMES } from '../utils/colors.js';
 import EventItem from './EventItem.jsx';
 
 const SECTION_LABEL = {
@@ -34,19 +37,6 @@ function SectionHeader({ label }) {
   );
 }
 
-function applySort(list, order) {
-  const sorted = [...list];
-  switch (order) {
-    case 'latest':
-      return sorted.sort((a, b) => calculateDaysLeft(getEffectiveDate(b)) - calculateDaysLeft(getEffectiveDate(a)));
-    case 'az':
-      return sorted.sort((a, b) => a.name.localeCompare(b.name));
-    case 'za':
-      return sorted.sort((a, b) => b.name.localeCompare(a.name));
-    default:
-      return sorted.sort((a, b) => calculateDaysLeft(getEffectiveDate(a)) - calculateDaysLeft(getEffectiveDate(b)));
-  }
-}
 
 export default function EventList({
   uid, settings, showToast, showConfirm, onEventsChange,
@@ -57,7 +47,10 @@ export default function EventList({
   const closeColorPicker = useCallback(() => setColorMenu(null), []);
 
   const [search, setSearch] = useState('');
-  const [sortOrder, setSortOrder] = useState('soonest');
+  const [sortOrder, setSortOrder] = useState(
+    () => localStorage.getItem('sortOrder') || 'soonest'
+  );
+  const [colorFilter, setColorFilter] = useState(null);
   const [pastOpen, setPastOpen] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
@@ -88,7 +81,7 @@ export default function EventList({
         const batch = writeBatch(db);
         const kept = [];
         docs.forEach(event => {
-          if (calculateDaysLeft(event.date) < 0 && !event.recurrence) {
+          if (calculateDaysLeft(event.date) < 0 && !event.recurrence && !event.isCountUp) {
             batch.delete(doc(db, 'users', uid, 'events', event.id));
           } else {
             kept.push(event);
@@ -199,16 +192,18 @@ export default function EventList({
   }
 
   const searchActive = search.trim().length > 0;
-  const filtered = searchActive
-    ? events.filter(e => e.name.toLowerCase().includes(search.trim().toLowerCase()))
-    : events;
+  const filtered = events.filter(e => {
+    const nameMatch = !search.trim() || e.name.toLowerCase().includes(search.trim().toLowerCase());
+    const colorMatch = !colorFilter || (e.bgColor || 'yellow-300') === colorFilter;
+    return nameMatch && colorMatch;
+  });
 
-  const upcoming = filtered.filter(e => calculateDaysLeft(getEffectiveDate(e)) >= 0);
-  const past = filtered.filter(e => calculateDaysLeft(getEffectiveDate(e)) < 0);
+  const upcoming = filtered.filter(e => calculateDaysLeft(getEffectiveDate(e)) >= 0 || e.isCountUp === true);
+  const past = filtered.filter(e => calculateDaysLeft(getEffectiveDate(e)) < 0 && e.isCountUp !== true);
 
-  const sortedUpcoming = applySort(upcoming, sortOrder);
-  const sortedPast = applySort(past, sortOrder);
-  const sortedFiltered = applySort(filtered, sortOrder);
+  const sortedUpcoming = sortEvents(upcoming, sortOrder);
+  const sortedPast = sortEvents(past, sortOrder);
+  const sortedFiltered = sortEvents(filtered, sortOrder);
 
   const hasEvents = events.length > 0;
   const hasResults = filtered.length > 0;
@@ -224,7 +219,7 @@ export default function EventList({
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: colorFilter ? 8 : 16 }}>
         <input
           type="search"
           className="input"
@@ -237,13 +232,25 @@ export default function EventList({
           className="input"
           style={{ width: 'auto', fontSize: 13, padding: '6px 10px' }}
           value={sortOrder}
-          onChange={e => setSortOrder(e.target.value)}
+          onChange={e => {
+            setSortOrder(e.target.value);
+            localStorage.setItem('sortOrder', e.target.value);
+          }}
         >
           <option value="soonest">Soonest first</option>
           <option value="latest">Latest first</option>
           <option value="az">A → Z</option>
           <option value="za">Z → A</option>
+          <option value="dateAdded">Date added</option>
         </select>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => exportAllEvents(events, uid, showToast)}
+          style={{ fontSize: 12, whiteSpace: 'nowrap' }}
+        >
+          Export all
+        </button>
         <button
           className={bulkMode ? 'btn' : 'btn-ghost'}
           style={{ fontSize: 13, padding: '6px 12px', whiteSpace: 'nowrap' }}
@@ -258,6 +265,36 @@ export default function EventList({
         >
           {bulkMode ? 'Done' : 'Select'}
         </button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {COLOR_NAMES.map(key => (
+          <button
+            key={key}
+            onClick={() => setColorFilter(colorFilter === key ? null : key)}
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              background: ACCENT_COLORS[key],
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              outline: colorFilter === key ? '2px solid #fff' : '2px solid transparent',
+              outlineOffset: 2,
+              flexShrink: 0,
+            }}
+          />
+        ))}
+        {colorFilter && (
+          <button
+            className="btn-ghost"
+            style={{ fontSize: 12, padding: '2px 8px', color: 'var(--ink-3)' }}
+            onClick={() => setColorFilter(null)}
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {!hasResults ? (
