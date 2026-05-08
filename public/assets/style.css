@@ -678,6 +678,23 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   margin: 0 auto;
 }
 
+/* Onboarding embeds AddEventForm: disable fixed dock layout */
+.onboard-panel .composer-dock {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  padding: 0;
+  pointer-events: auto;
+}
+.onboard-panel .composer-dock .composer-inner {
+  max-width: 100%;
+  margin: 0;
+  padding: 12px 12px;
+  border-radius: 14px;
+}
+
 /* Calendar */
 .cal-grid {
   display: grid;
