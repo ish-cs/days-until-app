@@ -1129,3 +1129,19 @@ button.cal-cell:focus-visible {
 
 /* Tailwind reset compat */
 *, *::before, *::after { box-sizing: border-box; }
+
+/* Onboarding embeds AddEventForm: override fixed dock (must come after composer rules) */
+.onboard-panel .composer-dock {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+}
+.onboard-panel .composer-dock .composer-inner {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 12px 12px !important;
+  border-radius: 14px !important;
+}
