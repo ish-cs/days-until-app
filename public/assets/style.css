@@ -173,14 +173,14 @@ body {
 
 /* Primary CTA button (accent) */
 .btn-primary {
-  background: var(--accent);
-  color: var(--bg-0);
-  border-color: rgba(245,215,110,0.55);
-  box-shadow: 0 10px 30px -18px rgba(245,215,110,0.45);
+  /* Match composer submit: tinted glass + accent border, not solid fill */
+  color: var(--ink-0);
+  background: rgba(245,215,110,0.08);
+  border-color: rgba(245,215,110,0.35);
 }
 .btn-primary:hover {
-  background: rgba(245,215,110,0.92);
-  border-color: rgba(245,215,110,0.70);
+  background: rgba(245,215,110,0.14);
+  border-color: rgba(245,215,110,0.50);
 }
 
 /* input */
@@ -569,9 +569,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   overflow-y: auto;
   padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
     max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* Keep the app’s ambient background visible */
+  background: rgba(0,0,0,0.18);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .onboard-shell {
   width: 100%;
@@ -618,7 +619,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 .onboard-title.hero {
   font-size: 28px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 .onboard-subtitle {
