@@ -12,6 +12,7 @@
 | 9. Search (name only) | **DONE** — name search + color filter chips implemented |
 | 1. Quick Add Recurrence Preview | **DONE** — `src/utils/recurrencePreview.js`, `AddEventForm.jsx` |
 | Composer Tab autocomplete | **DONE** — `wordfreq-en-25000` trie + `persona-boost.json` + history (ranked merge) + weekday + trailing keyword→color heuristics + partial palette + `groq` `action: complete`; `getComposerSuggestion` / `__perfRunSuggestions`; `composerAutocomplete.js`, `AddEventForm.jsx` |
+| Quick add relative to calendar events | **DONE** — `eventAnchorResolve.js` (`N days/weeks after|before` + fuzzy name match, `bday`→Birthday); runs before chrono in `extractStructuredDateTime`; context includes `recurrence` (groq) |
 | 2. ICS Import Warning | **DONE** |
 | 6. Timezone Handling | **DONE** |
 

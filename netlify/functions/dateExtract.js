@@ -1,5 +1,6 @@
 import * as chrono from "chrono-node";
 import { resolveSingleWeekdayDate } from "./weekdayResolve.js";
+import { tryEventAnchoredDate } from "./eventAnchorResolve.js";
 
 /** Interpret client calendar date YYYY-MM-DD at UTC noon (matches weekday resolver). */
 function parseRefDate(todayISO) {
@@ -106,10 +107,14 @@ function tryChronoDateForText(text, ref) {
 }
 
 /**
- * Prefer explicit English relatives, then chrono on fragments (dash-separated),
- * then whole string, then weekday resolver — avoids chrono mis-reading "night - in 2 days".
+ * Prefer event-anchored offsets ("day after my bday"), then explicit English relatives,
+ * then chrono on fragments (dash-separated), then whole string, then weekday resolver.
+ *
+ * @param {string} userInput
+ * @param {string} todayISO
+ * @param {Array<{ name?: string, date?: string, recurrence?: string|null }>} [calendarEvents] Existing events for anchored relative dates.
  */
-export function extractStructuredDateTime(userInput, todayISO) {
+export function extractStructuredDateTime(userInput, todayISO, calendarEvents = []) {
   if (!todayISO || typeof userInput !== "string") {
     return { date: null, time: "" };
   }
@@ -119,9 +124,13 @@ export function extractStructuredDateTime(userInput, todayISO) {
 
   const ref = parseRefDate(todayISO);
   const dashParts = text.split(/\s*-\s*/).map((s) => s.trim()).filter(Boolean);
-  const candidates = [...new Set([text, ...dashParts])];
 
-  let date = tryExplicitRelativePatterns(text, todayISO);
+  let time = collectChronoTime(text, ref);
+
+  const anchored = tryEventAnchoredDate(text, todayISO, calendarEvents);
+  let date = anchored?.date ?? null;
+
+  if (!date) date = tryExplicitRelativePatterns(text, todayISO);
   if (!date) {
     for (const part of dashParts) {
       const d = tryExplicitRelativePatterns(part, todayISO);
@@ -131,8 +140,6 @@ export function extractStructuredDateTime(userInput, todayISO) {
       }
     }
   }
-
-  let time = collectChronoTime(text, ref);
 
   if (!date) {
     for (const part of [...dashParts].reverse()) {

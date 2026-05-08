@@ -132,14 +132,15 @@ Return ONLY JSON: { "suffix": "..." }`;
 
     const userInput = body.text ?? "";
     const rawContext = Array.isArray(body.context) ? body.context : [];
-    const context = rawContext.slice(0, 20).map(e => ({
+    const context = rawContext.slice(0, 30).map((e) => ({
       name: String(e.name ?? '').replace(/[\r\n]/g, ' ').slice(0, 100),
       date: String(e.date ?? '').slice(0, 20),
       time: String(e.time ?? '').slice(0, 10),
+      recurrence: typeof e.recurrence === 'string' ? e.recurrence : null,
     }));
     const today = body.today;
 
-    const structured = extractStructuredDateTime(userInput, today);
+    const structured = extractStructuredDateTime(userInput, today, context);
     const todayWeekday = today ? weekdayLongFromISO(today) : "";
 
     const prompt = `Today is ${today} (${todayWeekday}). The user's phrase may contain a date/time — precise calendar dates are resolved separately; focus on meaning.
@@ -157,8 +158,8 @@ Extract:
 
 If no usable title: name null.
 
-Existing events (context only):
-${context.map(e => `- ${e.name} on ${e.date}${e.time ? ` at ${e.time}` : ''}`).join('\n') || '(none)'}
+Existing events (names + dates help resolve phrases like "the day after my bday" or "a week after dog walk" — use ONLY this list to anchor those relative dates; do not treat them as free-form text):
+${context.map(e => `- ${e.name} on ${e.date}${e.time ? ` at ${e.time}` : ''}${e.recurrence ? ` (${e.recurrence})` : ''}`).join('\n') || '(none)'}
 
 User phrase:
 "${userInput}"

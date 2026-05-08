@@ -22,6 +22,23 @@ function cleanRemoteSuffix(suffix, text) {
   return s;
 }
 
+/** Normalize event date for Groq context (string YYYY-MM-DD or Firestore Timestamp). */
+function toContextDateString(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'string') {
+    const s = v.trim().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+  }
+  if (typeof v === 'object' && typeof v.toDate === 'function') {
+    const d = v.toDate();
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${da}`;
+  }
+  return '';
+}
+
 export default function AddEventForm({
   uid, settings, showToast, events = [],
   composerPrefillDate = null, onComposerPrefillConsumed,
@@ -146,7 +163,15 @@ export default function AddEventForm({
 
     try {
       const snapshot = await getDocs(collection(db, 'users', uid, 'events'));
-      const allEvents = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const allEvents = snapshot.docs.map((d) => {
+        const data = d.data();
+        const dateNorm = toContextDateString(data.date);
+        return {
+          id: d.id,
+          ...data,
+          ...(dateNorm ? { date: dateNorm } : {}),
+        };
+      });
 
       const response = await fetch('/.netlify/functions/groq', {
         method: 'POST',
