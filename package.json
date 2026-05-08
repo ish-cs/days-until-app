@@ -11,12 +11,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@netlify/functions": "^5.2.0",
     "chrono-node": "^2.9.0",
     "firebase": "^12.12.1",
+    "firebase-admin": "^13.9.0",
     "groq-sdk": "^1.1.2",
     "lucide-react": "^1.14.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
