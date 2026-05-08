@@ -85,10 +85,9 @@ export default function App() {
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).has('onboarding');
   if (!user) {
-    return (
-      <>
-        <AuthScreen onLogin={handleLogin} />
-        {forceOnboarding && (
+    if (forceOnboarding) {
+      return (
+        <>
           <OnboardingFlow
             uid={null}
             user={null}
@@ -97,7 +96,13 @@ export default function App() {
             disableWrites
             onComplete={() => {}}
           />
-        )}
+          {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
+        </>
+      );
+    }
+    return (
+      <>
+        <AuthScreen onLogin={handleLogin} />
         {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
       </>
     );
