@@ -157,69 +157,25 @@ function StepCards({ usedLabels, onSelect }) {
 }
 
 function StepFirstEvent({ uid, preFill, showToast, onEventAdded, disableWrites }) {
-  const [draftName, setDraftName] = useState(preFill.name || '');
-  const [draftDate, setDraftDate] = useState(preFill.date || '');
-
-  useEffect(() => {
-    setDraftName(preFill.name || '');
-    setDraftDate(preFill.date || '');
-  }, [preFill.name, preFill.date]);
-
-  if (disableWrites || !uid) {
-    return (
-      <div style={{ textAlign: 'center' }}>
-        <h2 className="onboard-title">Add your first event</h2>
-        <div className="onboard-subtitle" style={{ marginTop: -6 }}>
-          (QA mode) This won’t save to your account.
-        </div>
-        <div style={{ width: '100%', marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <input
-            className="input"
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            placeholder="Event name"
-            aria-label="Event name"
-          />
-          <input
-            className="input"
-            type="date"
-            value={draftDate}
-            onChange={(e) => setDraftDate(e.target.value)}
-            aria-label="Event date"
-          />
-          <button
-            className="btn btn-primary"
-            type="button"
-            onClick={() => {
-              if (!draftName.trim() || !draftDate) {
-                showToast?.('Add a name + date to continue.');
-                return;
-              }
-              onEventAdded?.({ name: draftName.trim(), date: draftDate });
-            }}
-          >
-            Continue
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  const isQa = disableWrites || !uid;
   return (
     <div style={{ textAlign: 'center' }}>
       <h2 className="onboard-title">Add your first event</h2>
       <div className="onboard-subtitle" style={{ marginTop: -6 }}>
-        Tip: you can type natural language like “Dentist next Tuesday 3pm”.
+        {isQa
+          ? '(QA mode) Uses Quick Add, but won’t save to your account.'
+          : 'Tip: you can type natural language like “Dentist next Tuesday 3pm”.'}
       </div>
       <div style={{ width: '100%', marginTop: 8 }}>
         <AddEventForm
           uid={uid}
-          settings={{ quickAddMode: false }}
+          settings={{ quickAddMode: true }}
           showToast={showToast}
           prefillName={preFill.name}
           prefillDate={preFill.date}
           onEventAdded={onEventAdded}
-          submitLabel="Add my first event"
+          submitLabel={isQa ? 'Continue' : 'Add my first event'}
+          disablePersistence={isQa}
         />
       </div>
     </div>

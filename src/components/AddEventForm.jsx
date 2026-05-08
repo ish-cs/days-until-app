@@ -43,7 +43,8 @@ export default function AddEventForm({
   uid, settings, showToast, events = [],
   composerPrefillDate = null, onComposerPrefillConsumed,
   prefillName = null, onEventAdded = null,
-  submitLabel = 'Add'
+  submitLabel = 'Add',
+  disablePersistence = false,
 }) {
   const [name, setName] = useState('');
   const [recurrencePreview, setRecurrencePreview] = useState(null);
@@ -162,16 +163,17 @@ export default function AddEventForm({
     setTimeout(() => { cooldownRef.current = false; }, QUICK_ADD_COOLDOWN_MS);
 
     try {
-      const snapshot = await getDocs(collection(db, 'users', uid, 'events'));
-      const allEvents = snapshot.docs.map((d) => {
-        const data = d.data();
-        const dateNorm = toContextDateString(data.date);
-        return {
-          id: d.id,
-          ...data,
-          ...(dateNorm ? { date: dateNorm } : {}),
-        };
-      });
+      const allEvents = disablePersistence || !uid
+        ? (Array.isArray(events) ? events : [])
+        : (await getDocs(collection(db, 'users', uid, 'events'))).docs.map((d) => {
+            const data = d.data();
+            const dateNorm = toContextDateString(data.date);
+            return {
+              id: d.id,
+              ...data,
+              ...(dateNorm ? { date: dateNorm } : {}),
+            };
+          });
 
       const response = await fetch('/.netlify/functions/groq', {
         method: 'POST',
@@ -187,7 +189,12 @@ export default function AddEventForm({
 
       if (!data.name || !data.date) throw new Error('Could not understand. Try a clearer event and date.');
 
-      await saveEvent(data.name, data.date, data.time || '', data.color || 'yellow-300', data.recurrence || null);
+      if (disablePersistence || !uid) {
+        onEventAdded?.({ name: data.name, date: data.date });
+        showToast?.('Event added!', 'success');
+      } else {
+        await saveEvent(data.name, data.date, data.time || '', data.color || 'yellow-300', data.recurrence || null);
+      }
       setName('');
       setRecurrencePreview(null);
       setRemoteSuffix('');
