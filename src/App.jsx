@@ -91,6 +91,10 @@ export default function App() {
   }
 
   const showOnboarding = onboardingComplete === false && events.length < 5;
+  const forceOnboarding =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('onboarding');
+  const shouldShowOnboarding = showOnboarding || forceOnboarding;
 
   return (
     <>
@@ -136,7 +140,7 @@ export default function App() {
           suppressEscapeClose={!!confirm}
         />
       )}
-      {showOnboarding && (
+      {shouldShowOnboarding && (
         <OnboardingFlow
           uid={user.uid}
           user={user}
