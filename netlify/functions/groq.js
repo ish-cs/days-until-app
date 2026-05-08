@@ -48,13 +48,18 @@ export async function handler(event) {
       const context = rawContext.slice(0, 30).map(e =>
         String(e.name ?? '').replace(/[\r\n]/g, ' ').slice(0, 80)
       );
+      const THEMES = ['academic', 'social', 'health', 'work', 'personal', 'family', 'fitness', 'errand', 'creative', 'financial'];
+      const COLORS = ['red', 'blue', 'green', 'purple', 'orange', 'pink', 'teal', null, null, null];
+      const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
+      const colorHint = COLORS[Math.floor(Math.random() * COLORS.length)];
+
       const prompt = `You help generate placeholder text for an event input box.
 Based on the user's existing events, infer their life context (student, professional, parent, etc).
 Generate ONE short realistic example event in natural language — something they might plausibly add.
 Rules:
-- MUST include a relative date (e.g. "next Tuesday", "this Friday", "tomorrow", "in 3 days")
+- MUST include a relative date (e.g. "next Tuesday", "this Friday", "tomorrow", "in 3 days", "next week")
 - Optionally include a time if the event is time-sensitive (e.g. "3pm", "10:30am")
-- Optionally prefix with a color for variety (e.g. "blue - team meeting Friday", "red - exam this Thursday 9am") — do this ~30% of the time
+- Theme for this example: ${theme}${colorHint ? `\n- Prefix with color: "${colorHint} - ..."` : ''}
 - Do NOT reuse any existing events
 - Keep it under 10 words total, conversational
 
