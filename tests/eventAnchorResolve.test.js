@@ -3,8 +3,8 @@ import {
   parseRelativeOffsetClause,
   nextInstanceOnOrAfter,
   tryEventAnchoredDate,
-} from './eventAnchorResolve.js';
-import { extractStructuredDateTime } from './dateExtract.js';
+} from '../netlify/functions/eventAnchorResolve.js';
+import { extractStructuredDateTime } from '../netlify/functions/dateExtract.js';
 
 describe('eventAnchorResolve', () => {
   it('parses day/week after before clauses', () => {
