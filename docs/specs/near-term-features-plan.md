@@ -11,8 +11,8 @@
 | 8. Event Notes (core) | **DONE** — `AddEventForm.jsx:138-147` (form), `EventItem.jsx:263-314` (card) |
 | 9. Search (name only) | **DONE** — name search + color filter chips implemented |
 | 1. Quick Add Recurrence Preview | **DONE** — `src/utils/recurrencePreview.js`, `AddEventForm.jsx` |
-| 2. ICS Import Warning | **NOT DONE** |
-| 6. Timezone Handling | **NOT DONE** |
+| 2. ICS Import Warning | **DONE** |
+| 6. Timezone Handling | **DONE** |
 
 ---
 
@@ -92,7 +92,7 @@ Reset `recurrencePreview` to `null` after successful quick-add in `handleQuickAd
 
 ## Feature 2 — ICS Import Warning / Duplicate Detection
 
-**Status: Not implemented.**
+**Status: DONE.**
 
 Before committing ICS import, check parsed events against existing events and surface duplicates to the user.
 
@@ -203,7 +203,7 @@ localStorage.setItem('sortOrder', e.target.value);
 
 ## Feature 6 — Timezone Handling
 
-**Status: Not implemented.**
+**Status: DONE.**
 
 **Files to modify:**
 - `src/components/AddEventForm.jsx` — include `timezone` in save payload
