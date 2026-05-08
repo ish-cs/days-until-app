@@ -26,7 +26,7 @@ import AddEventForm from './AddEventForm.jsx';
 
 const defaultProps = {
   uid: 'user1',
-  settings: { quickAddMode: false },
+  settings: {},
   showToast: vi.fn(),
   composerPrefillDate: null,
   onComposerPrefillConsumed: vi.fn(),
@@ -37,32 +37,40 @@ beforeEach(() => {
 });
 
 describe('AddEventForm', () => {
-  it('renders name input with Event name placeholder', () => {
+  it('renders quick add placeholder', () => {
     render(<AddEventForm {...defaultProps} />);
-    expect(screen.getByPlaceholderText('Event name')).toBeInTheDocument();
-  });
-
-  it('renders date input in standard mode', () => {
-    render(<AddEventForm {...defaultProps} />);
-    expect(document.querySelector('input[type="date"]')).toBeInTheDocument();
-  });
-
-  it('renders notes textarea', () => {
-    render(<AddEventForm {...defaultProps} />);
-    expect(screen.getByPlaceholderText('Notes (optional)')).toBeInTheDocument();
-  });
-
-  it('quick add mode shows different placeholder', () => {
-    render(<AddEventForm {...defaultProps} settings={{ quickAddMode: true }} />);
     expect(screen.getByPlaceholderText(/Add an event/i)).toBeInTheDocument();
   });
 
-  it('submit without name shows toast with error message', async () => {
+  it('does not render date or notes inputs', () => {
+    render(<AddEventForm {...defaultProps} />);
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(screen.queryByPlaceholderText('Notes (optional)')).toBeNull();
+  });
+
+  it('renders Add button', () => {
+    render(<AddEventForm {...defaultProps} />);
+    expect(screen.getByRole('button', { name: /Add/i })).toBeInTheDocument();
+  });
+
+  it('submit with empty input does nothing (no toast, no fetch)', async () => {
     const showToast = vi.fn();
     const user = userEvent.setup();
     render(<AddEventForm {...defaultProps} showToast={showToast} />);
     await user.click(screen.getByRole('button', { name: /Add/i }));
-    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('name'));
+    expect(showToast).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it('submit with text calls groq endpoint', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ name: 'Dentist', date: '2026-05-10' }),
+    });
+    const user = userEvent.setup();
+    render(<AddEventForm {...defaultProps} />);
+    await user.type(screen.getByRole('textbox'), 'Dentist next Tuesday');
+    await user.click(screen.getByRole('button', { name: /Add/i }));
+    expect(global.fetch).toHaveBeenCalledWith('/.netlify/functions/groq', expect.any(Object));
+  });
 });

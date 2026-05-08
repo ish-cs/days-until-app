@@ -3,7 +3,6 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase.js';
 
 const DEFAULT_SETTINGS = {
-  quickAddMode: false,
   autoDeleteMode: false,
   showDayOfWeekMode: false,
   notificationsEnabled: false,

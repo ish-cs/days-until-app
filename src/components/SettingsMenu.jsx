@@ -146,7 +146,6 @@ export default function SettingsMenu({
   }
 
   const toggles = [
-    { key: 'quickAddMode', label: 'Quick Add Mode', desc: 'Describe events in plain language; AI fills date and time.' },
     { key: 'autoDeleteMode', label: 'Auto-delete past events', desc: 'Remove events automatically after their date passes.' },
     { key: 'showDayOfWeekMode', label: 'Show day of week', desc: 'Include weekdays next to each date in the list.' },
   ];
