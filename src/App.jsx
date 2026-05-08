@@ -81,19 +81,29 @@ export default function App() {
 
   if (authLoading) return null;
 
+  const forceOnboarding =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('onboarding');
   if (!user) {
     return (
       <>
         <AuthScreen onLogin={handleLogin} />
+        {forceOnboarding && (
+          <OnboardingFlow
+            uid={null}
+            user={null}
+            events={[]}
+            showToast={showToast}
+            disableWrites
+            onComplete={() => {}}
+          />
+        )}
         {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}
       </>
     );
   }
 
   const showOnboarding = onboardingComplete === false && events.length < 5;
-  const forceOnboarding =
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).has('onboarding');
   const shouldShowOnboarding = showOnboarding || forceOnboarding;
 
   return (
@@ -147,6 +157,7 @@ export default function App() {
           events={events}
           showToast={showToast}
           onComplete={() => setOnboardingComplete(true)}
+          disableWrites={forceOnboarding}
         />
       )}
       {toast && <Toast toast={toast} onDismiss={() => setToast(null)} />}

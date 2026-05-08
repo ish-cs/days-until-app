@@ -18,23 +18,26 @@ function nextYearToday() {
   return d.toISOString().slice(0, 10);
 }
 
-async function writeStep(uid, s) {
+async function writeStep(uid, s, { disableWrites = false } = {}) {
+  if (disableWrites || !uid) return;
   await setDoc(doc(db, 'users', uid), { onboardingStep: s }, { merge: true });
 }
 
-async function completeOnboarding(uid, onComplete) {
-  await setDoc(doc(db, 'users', uid), { onboardingComplete: true }, { merge: true });
-  onComplete();
+async function completeOnboarding(uid, onComplete, { disableWrites = false } = {}) {
+  if (!disableWrites && uid) {
+    await setDoc(doc(db, 'users', uid), { onboardingComplete: true }, { merge: true });
+  }
+  onComplete?.();
 }
 
-export default function OnboardingFlow({ uid, user, onComplete, events, showToast }) {
+export default function OnboardingFlow({ uid, user, onComplete, events, showToast, disableWrites = false }) {
   const [step, setStep] = useState(0);
   const [preFill, setPreFill] = useState({ name: '', date: '' });
   const [addedEvents, setAddedEvents] = useState([]);
 
   function goTo(s) {
     setStep(s);
-    writeStep(uid, s);
+    writeStep(uid, s, { disableWrites });
   }
 
   function handleCardSelect(card) {
@@ -55,7 +58,7 @@ export default function OnboardingFlow({ uid, user, onComplete, events, showToas
 
   useEffect(() => {
     if (step === 5) {
-      const t = setTimeout(() => completeOnboarding(uid, onComplete), 1500);
+      const t = setTimeout(() => completeOnboarding(uid, onComplete, { disableWrites }), 1500);
       return () => clearTimeout(t);
     }
   }, [step]);
