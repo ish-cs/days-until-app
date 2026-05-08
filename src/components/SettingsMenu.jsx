@@ -280,6 +280,10 @@ export default function SettingsMenu({
             Done
           </button>
         </div>
+
+        <p style={{ fontSize: 11, color: 'var(--ink-4)', textAlign: 'center', marginTop: 12, marginBottom: 0 }}>
+          v{__APP_VERSION__}
+        </p>
       </div>
     </div>
   );
