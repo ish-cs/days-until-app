@@ -101,6 +101,7 @@ export default function OnboardingFlow({ uid, user, onComplete, events, showToas
               preFill={preFill}
               showToast={showToast}
               onEventAdded={handleEventAdded}
+            disableWrites={disableWrites}
             />
           )}
           {step === 3 && (
@@ -155,7 +156,55 @@ function StepCards({ usedLabels, onSelect }) {
   );
 }
 
-function StepFirstEvent({ uid, preFill, showToast, onEventAdded }) {
+function StepFirstEvent({ uid, preFill, showToast, onEventAdded, disableWrites }) {
+  const [draftName, setDraftName] = useState(preFill.name || '');
+  const [draftDate, setDraftDate] = useState(preFill.date || '');
+
+  useEffect(() => {
+    setDraftName(preFill.name || '');
+    setDraftDate(preFill.date || '');
+  }, [preFill.name, preFill.date]);
+
+  if (disableWrites || !uid) {
+    return (
+      <div style={{ textAlign: 'center' }}>
+        <h2 className="onboard-title">Add your first event</h2>
+        <div className="onboard-subtitle" style={{ marginTop: -6 }}>
+          (QA mode) This won’t save to your account.
+        </div>
+        <div style={{ width: '100%', marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <input
+            className="input"
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            placeholder="Event name"
+            aria-label="Event name"
+          />
+          <input
+            className="input"
+            type="date"
+            value={draftDate}
+            onChange={(e) => setDraftDate(e.target.value)}
+            aria-label="Event date"
+          />
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => {
+              if (!draftName.trim() || !draftDate) {
+                showToast?.('Add a name + date to continue.');
+                return;
+              }
+              onEventAdded?.({ name: draftName.trim(), date: draftDate });
+            }}
+          >
+            Continue
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ textAlign: 'center' }}>
       <h2 className="onboard-title">Add your first event</h2>
