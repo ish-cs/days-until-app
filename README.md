@@ -8,6 +8,11 @@ Built with React 18, Vite, Firebase, Tailwind CSS, and Netlify Functions.
 
 ## Changelog
 
+### v0.0.2
+- Quick Add is now the only add mode — manual form removed
+- Composer placeholder is LLM-generated per user context, refreshes on every page load
+- Placeholders always include a date; optionally include time or color hint
+
 ### v0.0.1
 - Initial release
 - Event list with countdown days, color labels, and sort/filter

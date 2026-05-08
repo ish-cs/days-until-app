@@ -1,6 +1,6 @@
 {
   "name": "daysuntilapp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n \"vite,functions\" -c \"cyan,magenta\" \"vite\" \"node scripts/local-functions.mjs\"",

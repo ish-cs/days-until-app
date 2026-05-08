@@ -51,7 +51,12 @@ export async function handler(event) {
       const prompt = `You help generate placeholder text for an event input box.
 Based on the user's existing events, infer their life context (student, professional, parent, etc).
 Generate ONE short realistic example event in natural language — something they might plausibly add.
-Do NOT use any of their existing events. Keep it under 8 words, conversational, with a time or day when natural.
+Rules:
+- MUST include a relative date (e.g. "next Tuesday", "this Friday", "tomorrow", "in 3 days")
+- Optionally include a time if the event is time-sensitive (e.g. "3pm", "10:30am")
+- Optionally prefix with a color for variety (e.g. "blue - team meeting Friday", "red - exam this Thursday 9am") — do this ~30% of the time
+- Do NOT reuse any existing events
+- Keep it under 10 words total, conversational
 
 Existing events: ${context.length ? context.join(', ') : '(none yet)'}
 
